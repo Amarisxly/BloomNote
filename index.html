@@ -1,0 +1,1311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Pick flowers that say the right thing, write the card, and keep every bouquet in an album.">
+<meta name="theme-color" content="#F7F6F2">
+<meta name="color-scheme" content="light">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Bloomnote">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>html{color-scheme:light;-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Bloomnote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=DM+Mono:wght@400;500&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: minimalist phone app. White paper, one ink line weight, riso overprint kept only inside the flower art. The Bouquet screen is a fixed one-screen workbench: context pills → bouquet canvas → horizontal flower tray → thumb-zone action bar. */
+:root{
+  --bg:#F7F6F2; --surface:#FFFFFF; --soft:#EEECE6; --line:#DAD7CF; --ink:#1D1A2B; --mute:#86828F;
+  --accent:#0078BF; --accent-press:#00649F; --pink:#FF48B0; --warn:#D9434B;
+  --sans:'Hanken Grotesk','Helvetica Neue',Arial,sans-serif;
+  --hand:'Caveat','Bradley Hand','Segoe Print',cursive;
+  --mono:'DM Mono',ui-monospace,Menlo,monospace;
+  --ease:cubic-bezier(.2,.8,.2,1);
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;background:var(--bg);color:var(--ink)}
+body{font-family:var(--sans);font-size:15px;line-height:1.5;overflow:hidden;-webkit-tap-highlight-color:transparent}
+svg.defs{position:absolute;width:0;height:0;overflow:hidden}
+.grain{position:fixed;inset:0;pointer-events:none;z-index:90;opacity:.16;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .16 0 0 0 0 .14 0 0 0 0 .26 0 0 0 .45 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* shell */
+.shell{position:fixed;top:0;bottom:0;left:0;right:0;margin:0 auto;max-width:520px;display:flex;flex-direction:column;background:var(--bg);overflow:hidden}
+@media (min-width:560px){.shell{border-inline:1px solid var(--line)}}
+#root{position:relative;flex:1;min-height:0;overflow:hidden}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);transition:transform .26s var(--ease)}
+.screen.l2{z-index:30;box-shadow:-1px 0 0 var(--line),-16px 0 32px rgba(29,26,43,.06)}
+.screen.enter{animation:slideIn .26s var(--ease) both}
+.screen.leave{animation:slideOut .22s cubic-bezier(.4,0,.7,1) both}
+.screen.behind{transform:translateX(-16%)}
+@keyframes slideIn{from{transform:translateX(100%)}to{transform:none}}
+@keyframes slideOut{from{transform:none}to{transform:translateX(100%)}}
+.screen.fade .scroll{animation:fade .18s ease both}
+@keyframes fade{from{opacity:.25}to{opacity:1}}
+
+.top{flex:none;min-height:56px;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px 16px;display:flex;align-items:center;gap:4px;background:var(--bg)}
+.top h1{flex:1;margin:0;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.top h1.brand{display:flex;align-items:center;gap:8px;font-size:24px;font-weight:800;letter-spacing:-.04em}
+.top h1.brand svg{width:34px;height:34px;flex:none}
+.top h1.brand em{font-style:normal;color:#C2187F}
+.top.l2h{display:grid;grid-template-columns:44px 1fr auto;padding-left:4px;border-bottom:1px solid var(--line)}
+.top.l2h h1{text-align:center;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top.l2h .r{display:flex;min-width:44px;justify-content:flex-end}
+.iconbtn{min-width:44px;height:44px;border-radius:22px;border:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;gap:6px;color:var(--ink);cursor:pointer;font:inherit;font-size:14px;font-weight:500;padding:0 10px;transition:transform .1s,background .1s}
+.iconbtn svg{width:22px;height:22px}
+.iconbtn:active{background:var(--soft);transform:scale(.92)}
+.scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-inline:16px;padding-block:8px 28px}
+.scroll.fixed{overflow:hidden;display:flex;flex-direction:column;padding-block:4px 0}
+.actions{flex:none;display:flex;gap:10px;align-items:stretch;padding:10px 16px;border-top:1px solid var(--line);background:var(--bg)}
+.l2 .actions{padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+
+/* buttons */
+.primary{flex:1;min-height:50px;font:inherit;font-weight:600;font-size:16px;border:0;background:var(--accent);color:#fff;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .1s,background .12s}
+.primary svg{width:20px;height:20px}
+.primary:active:not(:disabled){transform:scale(.97);background:var(--accent-press)}
+.primary:disabled{background:var(--soft);color:var(--mute);cursor:not-allowed}
+.primary.danger{background:var(--warn)}
+.second{flex:none;min-width:56px;min-height:50px;font:inherit;font-size:11px;font-weight:500;line-height:1.1;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;display:grid;place-items:center;align-content:center;gap:3px;padding:4px 8px;cursor:pointer;transition:transform .1s,background .1s}
+.second svg{width:20px;height:20px}
+.second:active:not(:disabled){transform:scale(.94);background:var(--soft)}
+.second:disabled{color:var(--mute);opacity:.6}
+.textbtn{flex:none;font:inherit;font-size:14px;font-weight:500;border:0;background:none;color:var(--accent);padding:10px 8px;cursor:pointer;border-radius:8px;transition:transform .1s,background .1s}
+.textbtn:active{transform:scale(.95);background:var(--soft)}
+.cancel{min-height:50px;font:inherit;font-size:16px;font-weight:500;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;cursor:pointer}
+.cancel:active{background:var(--soft)}
+:is(button,input,textarea):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* nav */
+.nav{flex:none;position:relative;z-index:10;background:var(--bg);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(5,1fr)}
+.navb{font:inherit;background:none;border:0;cursor:pointer;display:grid;justify-items:center;gap:2px;padding:6px 0 3px;color:var(--mute);transition:transform .1s,color .12s}
+.navb:active{transform:scale(.92)}
+.navb .ic{display:grid;place-items:center;width:44px;height:26px}
+.navb svg{width:22px;height:22px}
+.navb span{font-size:11px;font-weight:500}
+.navb[aria-current="page"]{color:var(--ink)}
+.navb[aria-current="page"] span{font-weight:700}
+.navb[aria-current="page"]:not(.hero) .ic{position:relative}
+.navb[aria-current="page"]:not(.hero) .ic::after{content:"";position:absolute;bottom:-3px;width:4px;height:4px;border-radius:2px;background:var(--pink)}
+.navb.hero .ic{width:52px;height:52px;border-radius:26px;background:var(--accent);color:#fff;margin-top:-20px;box-shadow:0 0 0 4px var(--bg)}
+.navb.hero svg{width:26px;height:26px}
+.navb.hero[aria-current="page"] .ic{box-shadow:0 0 0 4px var(--bg),0 0 0 6px var(--pink)}
+.navb.hero span{color:var(--ink)}
+
+/* shared */
+.sec{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--mute);margin:24px 0 10px;display:flex;justify-content:space-between;align-items:baseline}
+.sec:first-child{margin-top:4px}
+.muted{color:var(--mute);font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips.scrollx{flex-wrap:nowrap;overflow-x:auto;margin-inline:-16px;padding:2px 16px 4px;scrollbar-width:none}
+.chips.scrollx::-webkit-scrollbar{display:none}
+.chip{flex:none;font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 14px;min-height:38px;border-radius:999px;cursor:pointer;transition:transform .1s,background .12s}
+.chip:active{transform:scale(.95)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+input.txt,textarea.txt{font:inherit;width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:11px 12px;min-height:46px}
+input.txt:focus,textarea.txt:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,120,191,.15)}
+textarea.txt{resize:vertical;min-height:84px}
+.field{display:grid;gap:6px}
+.field label{font-size:13px;font-weight:500;color:var(--mute);display:flex;justify-content:space-between}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.kw{display:flex;flex-wrap:wrap;gap:6px}
+.kw span{background:var(--soft);padding:2px 10px;font-size:13px;border-radius:999px}
+.note{font-size:13px;padding:10px 12px;border-radius:10px;background:#FDF0F1;color:#7A2328}
+.note.pet{background:#EAF3FA;color:#0B4A73}
+.note b{font-weight:600}
+.seg{display:inline-flex;background:var(--soft);border-radius:999px;padding:3px}
+.seg button{font:inherit;font-size:14px;font-weight:500;border:0;background:transparent;padding:7px 16px;min-height:36px;cursor:pointer;color:var(--mute);border-radius:999px;transition:background .12s}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(29,26,43,.12)}
+.empty{display:grid;justify-items:center;text-align:center;gap:4px;padding:28px 16px}
+.empty svg{width:96px;height:72px;margin-bottom:6px}
+.empty b{font-size:16px;font-weight:600}
+.empty p{margin:0;font-size:14px;color:var(--mute);max-width:24em}
+.sk{background:linear-gradient(90deg,var(--soft) 0,#F5F3EE 45%,var(--soft) 90%);background-size:220% 100%;animation:shimmer 1.1s linear infinite;border-radius:10px}
+@keyframes shimmer{from{background-position:120% 0}to{background-position:-100% 0}}
+.list{display:grid;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.item{display:flex;width:100%;min-height:52px;align-items:center;gap:12px;font:inherit;font-size:16px;border:0;border-bottom:1px solid var(--line);background:var(--surface);color:var(--ink);text-align:left;padding:0 14px;cursor:pointer;transition:background .1s}
+.item:last-child{border-bottom:0}
+.item:active{background:var(--soft)}
+.item svg{width:20px;height:20px;flex:none;color:var(--mute)}
+.item.danger,.item.danger svg{color:var(--warn)}
+.item:disabled{color:var(--mute)}
+
+/* bouquet workbench */
+.ctx{flex:none;display:flex;gap:8px;align-items:center}
+.pick{font:inherit;display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 10px 0 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);cursor:pointer;transition:transform .1s;min-width:0}
+.pick:active{transform:scale(.96)}
+.pick span{font-size:12px;color:var(--mute)}
+.pick b{font-weight:600;font-size:14px;white-space:nowrap}
+.pick svg{width:16px;height:16px;color:var(--mute)}
+.stems{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
+.canvas{position:relative;flex:1;min-height:150px;display:grid;place-items:center;margin-block:6px}
+.canvas > svg{height:100%;width:auto;max-width:100%;display:block}
+.scorechip{position:absolute;top:4px;left:0;font:inherit;text-align:left;display:grid;grid-template-columns:auto auto;column-gap:10px;align-items:center;background:rgba(255,255,255,.88);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:14px;padding:8px 12px;cursor:pointer;color:var(--ink);transition:transform .1s}
+.scorechip:active{transform:scale(.96)}
+.scorechip b{grid-row:span 2;font-size:34px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;color:var(--accent)}
+.scorechip span{font-size:13px;font-weight:600;line-height:1.2}
+.scorechip small{font-size:12px;color:var(--mute);line-height:1.2}
+.scorechip small i{font-style:normal;color:var(--warn)}
+.says{position:absolute;left:0;right:0;bottom:0;text-align:center;font-family:var(--hand);font-size:22px;line-height:1.1;color:var(--ink);pointer-events:none}
+.hint{position:absolute;inset:auto 0 30%;text-align:center;font-size:14px;color:var(--mute);pointer-events:none}
+.trayhead{flex:none;display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--mute)}
+.trayhead b{font-size:13px;color:var(--ink);font-weight:600}
+.tray{flex:none;display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:70px;gap:8px 6px;overflow-x:auto;margin-inline:-16px;padding:8px 16px 12px;scroll-snap-type:x proximity;scrollbar-width:none}
+.tray::-webkit-scrollbar{display:none}
+@media (min-height:740px){.tray{grid-template-rows:repeat(3,auto)}}
+.ft{position:relative;font:inherit;scroll-snap-align:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px 2px 5px;cursor:pointer;display:grid;justify-items:center;color:var(--ink);transition:transform .1s,border-color .12s;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+.ft:active{transform:scale(.92)}
+.ft svg{width:36px;height:40px;pointer-events:none}
+.ft .n{font-size:11px;line-height:1.2;max-width:64px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ft.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.ft.avoid{opacity:.45}
+.ft .ct{position:absolute;top:-6px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--pink);color:var(--ink);font-family:var(--mono);font-size:11px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.ft .minus{position:absolute;top:-6px;left:-4px;width:22px;height:22px;border-radius:11px;background:var(--ink);color:#fff;font-size:14px;line-height:1;display:grid;place-items:center}
+.ft.addft{border:1.5px dashed var(--line);background:transparent;color:var(--accent);align-content:center;gap:4px}
+.ft.addft svg{width:22px;height:40px}
+.ft.addft .n{font-weight:600}
+.ft .yours{position:absolute;bottom:5px;right:5px;width:6px;height:6px;border-radius:3px;background:var(--accent)}
+/* flower maker */
+.mkprev{position:sticky;top:-12px;z-index:3;display:grid;grid-template-columns:84px minmax(0,1fr);gap:14px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:10px 14px;box-shadow:0 8px 20px rgba(29,26,43,.05)}
+.mkprev svg{width:84px;height:auto;overflow:visible}
+.mkprev b{display:block;font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mkprev small{display:block;font-size:13px;color:var(--mute)}
+.shapes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.shp{font:inherit;display:grid;justify-items:center;gap:2px;padding:6px 2px 6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;cursor:pointer;color:var(--ink);transition:transform .1s}
+.shp:active{transform:scale(.92)}
+.shp svg{width:38px;height:38px}
+.shp span{font-size:11px}
+.shp[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.sw{display:flex;flex-wrap:wrap;gap:10px}
+.swb{width:34px;height:34px;border-radius:17px;border:1px solid var(--line);cursor:pointer;padding:0;transition:transform .1s}
+.swb:active{transform:scale(.88)}
+.swb[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:3px}
+.upl{display:grid;place-items:center;align-content:center;gap:6px;width:150px;height:150px;border-radius:75px;border:1.5px dashed var(--line);background:var(--surface);cursor:pointer;justify-self:center;color:var(--accent);font-weight:600;font-size:14px;overflow:hidden;transition:transform .1s}
+.upl:active{transform:scale(.96)}
+.upl svg{width:26px;height:26px}
+.upl img{width:100%;height:100%;object-fit:cover;display:block}
+.toggle{display:flex;align-items:center;gap:10px;min-height:44px;font-size:15px;cursor:pointer}
+.toggle input{width:20px;height:20px;accent-color:var(--accent)}
+
+/* analysis sheet */
+.bars{display:grid;gap:10px}
+.bar{display:grid;grid-template-columns:7.5em 1fr 2.8em;gap:10px;align-items:center;font-size:13px}
+.bar i{display:block;height:6px;border-radius:3px;background:var(--soft);overflow:hidden}
+.bar i em{display:block;height:100%;background:var(--accent);border-radius:3px}
+.bar tt{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;text-align:right}
+.quote{font-family:var(--hand);font-size:26px;line-height:1.15;margin:0}
+
+/* lists & detail */
+.frow{display:grid;grid-template-columns:44px 1fr 18px;gap:12px;align-items:center;width:100%;text-align:left;font:inherit;color:var(--ink);background:none;border:0;border-bottom:1px solid var(--line);padding:10px 0;cursor:pointer;transition:background .1s}
+.frow:active{background:var(--soft)}
+.frow svg.th{width:44px;height:48px}
+.frow b{font-size:16px;font-weight:600}
+.frow small{display:block;font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.frow > span{min-width:0}
+.frow .dot{display:inline-block;width:6px;height:6px;border-radius:3px;background:var(--warn);margin-left:6px;vertical-align:middle}
+.chev{width:18px;height:18px;color:var(--mute);display:block}.chev svg{width:100%;height:100%;display:block}
+.featured{display:grid;grid-template-columns:72px 1fr 18px;gap:14px;align-items:center;width:100%;text-align:left;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 14px;cursor:pointer;transition:transform .1s}
+.featured:active{transform:scale(.98)}
+.featured svg.art{width:72px;height:auto;overflow:visible}
+.featured small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--pink);font-weight:600}
+.featured b{display:block;font-size:20px;font-weight:700}
+.detail{display:grid;gap:14px}
+.detail .hero{display:grid;justify-items:center;gap:2px;background:var(--surface);border-radius:20px;border:1px solid var(--line);padding:18px 16px 8px}
+.detail .hero svg{width:150px;height:auto;overflow:visible}
+.detail h2{margin:0;font-size:28px;font-weight:700;letter-spacing:-.01em}
+.detail .en{font-size:13px;color:var(--mute)}
+.detail p{margin:0}
+.presetrow{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;border-bottom:1px solid var(--line);padding:10px 0}
+.presetrow .mini{width:64px;height:64px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.presetrow .mini svg{width:100%;height:100%;display:block}
+.presetrow .load{font:inherit;text-align:left;background:none;border:0;padding:0;color:var(--ink);cursor:pointer;min-width:0;display:contents}
+.presetrow b{display:block;font-size:15px;font-weight:600}
+.presetrow small{display:block;font-size:13px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.presetrow > span{min-width:0}
+.presetrow .tagline{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+
+/* card */
+.cardwrap{display:grid;place-items:center;padding-block:4px 6px}
+.gcard{text-align:center;width:min(100%,320px);background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:18px 20px 16px;display:grid;gap:4px;position:relative;box-shadow:0 10px 30px rgba(29,26,43,.07)}
+.gcard::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c1)}
+.gcard .to{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+.gcard .art{height:120px;display:grid;place-items:center}
+.gcard .art svg{height:120px;width:auto}
+.gcard .msg{font-family:var(--hand);font-size:27px;line-height:1.15;color:var(--c1);min-height:2.3em;overflow-wrap:anywhere}
+.gcard .from{font-family:var(--hand);font-size:22px;text-align:center}
+.gcard .kind{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--c1)}
+.afilter{display:flex;gap:8px;align-items:center;margin-top:2px}
+.sbox{flex:1;min-width:0;display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--mute);cursor:text;transition:border-color .15s,box-shadow .15s}
+.sbox svg{width:17px;height:17px;flex:none}
+.sbox input{flex:1;min-width:0;height:100%;border:0;background:transparent;font:inherit;font-size:14px;color:var(--ink);outline:none;padding:0}
+.sbox:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,120,191,.15)}
+.tagpick{flex:none;height:42px;max-width:46%}
+.tagpick b{overflow:hidden;text-overflow:ellipsis}
+.tagpick.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.tagpick.on svg{color:#fff}
+.fadedbar{display:grid;grid-template-columns:22px 1fr 18px;gap:10px;align-items:center;width:100%;margin-top:12px;font:inherit;text-align:left;background:#FBF3E8;border:1px solid #E9D6BC;border-radius:14px;padding:10px 12px;color:#6B4E2E;cursor:pointer;transition:transform .1s}
+.fadedbar:active{transform:scale(.98)}
+.fadedbar svg{width:20px;height:20px}
+.fadedbar b{display:block;font-size:14px;color:#4A3520}
+.fadedbar span{font-size:13px;min-width:0}
+.life{position:absolute;left:10px;right:10px;bottom:8px;height:4px;border-radius:2px;background:rgba(255,255,255,.75);overflow:hidden}
+.life i{display:block;height:100%;border-radius:2px;background:var(--green)}
+.life.low i{background:var(--pink)}
+.life.big{position:static;display:block;height:6px;background:var(--soft);border-radius:3px}
+.fresh{display:grid;gap:8px;margin:0;font-size:13px;color:var(--mute)}
+.fresh b{color:var(--ink);font-weight:600}
+.pressed.pressing{animation:pressit .72s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes pressit{35%{transform:scale(.94) rotate(-1deg)}100%{transform:none;filter:sepia(.75) saturate(.45) contrast(.92) brightness(.98)}}
+.ktag{justify-self:start;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);background:#EAF3FA;border-radius:999px;padding:1px 8px}
+.inks{display:flex;gap:12px}
+.ink{width:36px;height:36px;border-radius:18px;border:0;cursor:pointer;padding:0;background:var(--a);box-shadow:inset -10px -10px 0 var(--b);transition:transform .1s}
+.ink:active{transform:scale(.9)}
+.ink[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:3px}
+.qlist{display:grid;gap:8px}
+.qbtn{font:inherit;text-align:left;background:var(--surface);border:1px solid var(--line);padding:12px 14px;min-height:46px;cursor:pointer;font-size:14px;color:var(--ink);border-radius:12px;transition:transform .1s}
+.qbtn:active{transform:scale(.98)}
+.qbtn[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.copyfall{width:100%;margin-bottom:10px;font:inherit;border:1px solid var(--warn);padding:10px;border-radius:10px;background:#fff}
+
+/* confess */
+.qa{display:grid;gap:22px}
+.qa .q{display:grid;gap:10px}
+.qa .q > b{font-size:17px;font-weight:600}
+.qa .q > b i{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--mute);margin-right:8px}
+.progress{display:flex;gap:6px;margin:4px 0 20px}
+.progress i{flex:1;height:4px;border-radius:2px;background:var(--soft)}
+.progress i.on{background:var(--pink)}
+.result{display:grid;gap:14px;position:relative}
+.stamp{position:absolute;right:4px;top:0;font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.1em;color:var(--warn);border:1.5px solid var(--warn);padding:2px 8px;transform:rotate(8deg);animation:stamp .45s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes stamp{from{transform:rotate(8deg) scale(2);opacity:0}to{transform:rotate(8deg) scale(1);opacity:1}}
+.result .line{font-family:var(--hand);font-size:31px;line-height:1.1;color:var(--accent);padding-right:70px;margin:0}
+.result .art{background:var(--surface);border:1px solid var(--line);border-radius:20px;display:grid;place-items:center;padding:8px}
+.result .art svg{height:260px;width:auto;max-width:100%}
+
+/* album */
+.pages{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.pg{font:inherit;text-align:left;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 8px 10px;cursor:pointer;display:grid;gap:6px;position:relative;transition:transform .12s}
+.pg:active{transform:scale(.96)}
+.pg .cv{position:relative;aspect-ratio:1/1;background:var(--bg);border-radius:8px;overflow:hidden}
+.pg .cv svg.bq{width:100%;height:100%;display:block}
+.pg .st{position:absolute;width:26%;pointer-events:none}
+.pg .w{font-family:var(--hand);font-size:19px;line-height:1.1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.2em}
+.pg .meta{display:flex;justify-content:space-between;gap:6px;font-size:11px;color:var(--mute)}
+.pg .meta span:first-child{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg .ready{position:absolute;top:14px;left:14px;background:var(--surface);border-radius:999px;font-size:11px;font-weight:600;padding:2px 8px;z-index:2;box-shadow:0 1px 3px rgba(29,26,43,.15)}
+.dried .cv,.dried .bqbig{filter:sepia(.75) saturate(.45) contrast(.92) brightness(.98)}
+.pressed{position:relative;aspect-ratio:1/1;background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden;touch-action:none}
+.pressed svg.bqbig{width:100%;height:100%;display:block}
+.pressed .st{position:absolute;width:22%;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.pressed .st.sel{outline:2px dashed var(--accent);outline-offset:3px;border-radius:6px}
+.pressed .datebadge{position:absolute;left:10px;bottom:10px;font-size:11px;background:var(--surface);border-radius:999px;padding:2px 8px;box-shadow:0 1px 3px rgba(29,26,43,.15)}
+.tray7{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.tray7 button{background:var(--surface);border:1px solid var(--line);padding:4px;cursor:pointer;border-radius:10px;min-height:44px;transition:transform .1s}
+.tray7 button:active{transform:scale(.88)}
+.tray7 svg{width:100%;height:auto;display:block}
+.principle{display:grid;grid-template-columns:24px 1fr;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.principle i{font-style:normal;font-family:var(--mono);font-size:13px;color:var(--pink)}
+.principle b{display:block;font-size:15px;font-weight:600}
+.principle p{margin:2px 0 0;font-size:13px;color:var(--mute)}
+
+/* sheet, toast */
+.sheet{position:fixed;inset:0;z-index:80;background:rgba(29,26,43,.35);display:grid;align-items:end;justify-items:center;animation:dim .2s ease both}
+@keyframes dim{from{background:rgba(29,26,43,0)}}
+.sheet .panel{background:var(--bg);width:min(100%,520px);max-height:86%;overflow-y:auto;border-radius:20px 20px 0 0;padding:6px 16px calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:10px;animation:up .24s var(--ease) both}
+@keyframes up{from{transform:translateY(100%)}}
+.sheet .grab{width:36px;height:4px;background:var(--line);border-radius:2px;margin:6px auto 2px}
+.sheet h3{margin:4px 0 0;font-size:18px;font-weight:700}
+.sheet p{margin:0;color:var(--mute);font-size:14px}
+.sheet .btns{display:grid;gap:8px;margin-top:4px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top,0px) + 62px);width:max-content;max-width:calc(100% - 32px);background:var(--ink);color:#fff;padding:9px 6px 9px 14px;font-size:14px;z-index:85;border-radius:12px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(29,26,43,.2);animation:toastIn .22s var(--ease) both}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,-8px)}}
+.toast.err{background:var(--warn)}
+.toast svg{width:18px;height:18px;flex:none}
+.toast button{font:inherit;font-weight:700;font-size:14px;color:#FFB4DE;background:none;border:0;padding:6px 10px;cursor:pointer;border-radius:8px}
+.toast button:active{background:rgba(255,255,255,.12)}
+/* motion: bloom in, blow away, tile pop */
+.hd{transform-box:fill-box;transform-origin:50% 50%}
+.grow{animation:grow .5s cubic-bezier(.3,1.5,.5,1) both}
+@keyframes grow{from{transform:scale(0) rotate(-40deg)}}
+.canvas.blow .hd{animation:blow .5s cubic-bezier(.5,0,.8,.4) forwards}
+.canvas.blow > svg{animation:fadeOut .45s .12s forwards}
+@keyframes blow{to{transform:translate(var(--dx),var(--dy)) rotate(var(--r)) scale(.35);opacity:0}}
+@keyframes fadeOut{to{opacity:0}}
+.ft.pop{animation:pop .38s cubic-bezier(.3,1.6,.5,1)}
+.ft.pop .ct{animation:pop .38s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pop{40%{transform:scale(1.14)}}
+.canvas[data-a]{cursor:zoom-in}
+.iconbtn:disabled{opacity:.35;cursor:default}
+.iconbtn.txt{font-size:14px;color:var(--accent)}
+
+/* presets deck */
+.deck{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:72%;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;margin-inline:-16px;padding:18px 14% 10px;scrollbar-width:none}
+.deck::-webkit-scrollbar{display:none}
+.pcard{scroll-snap-align:center;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:12px 12px 16px;display:grid;gap:4px;box-shadow:0 14px 36px rgba(29,26,43,.08);will-change:transform;cursor:pointer}
+.pcard .pmini{aspect-ratio:1/1;background:var(--bg);border-radius:14px;overflow:hidden;margin-bottom:6px}
+.pcard .pmini svg{width:100%;height:100%;display:block}
+.pcard .tagline{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.pcard b{font-size:19px;font-weight:700;line-height:1.2}
+.pcard small{font-size:13px;color:var(--mute)}
+.pcard .textbtn{justify-self:start;padding-left:0;color:var(--warn)}
+.deckdots,.lbdots{display:flex;justify-content:center;gap:6px;min-height:14px;align-items:center}
+.deckdots i,.lbdots i{width:6px;height:6px;border-radius:3px;background:var(--line);transition:width .2s,background .2s}
+.deckdots i.on,.lbdots i.on{width:18px;background:var(--ink)}
+
+/* flower detail pager */
+.detail .hero{position:relative}
+.pager{display:flex;align-items:center;gap:2px;font-family:var(--mono);font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}
+.pager span{min-width:52px;text-align:center}
+.pgb{width:30px;height:30px;border-radius:15px;border:0;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0;transition:transform .1s,background .1s,color .1s}
+.pgb svg{width:8px;height:10px}
+.pgb:active:not(:disabled){transform:scale(.88);background:var(--soft);color:var(--ink)}
+.pgb:disabled{opacity:.2;cursor:default}
+.fsw{touch-action:pan-y}
+
+/* lightbox */
+.lb{position:fixed;inset:0;z-index:75;background:rgba(247,246,242,.97);display:flex;flex-direction:column;animation:lbIn .22s ease both}
+@keyframes lbIn{from{opacity:0}}
+.lb.closing{animation:fadeOut .2s ease forwards}
+.lbtop{display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 0}
+.lbcount{font-family:var(--mono);font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
+.lbview{flex:1;min-height:0;overflow:hidden;position:relative;touch-action:none}
+.lbtrack{display:flex;height:100%;will-change:transform}
+.lbslide{flex:0 0 100%;height:100%;display:grid;place-items:center;padding:10px 24px}
+.lbinner{width:min(100%,420px,58vh);transition:transform .28s var(--ease);animation:zoomIn .34s var(--ease) both}
+@keyframes zoomIn{from{transform:scale(.86);opacity:.2}}
+.lbcard{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:12px 12px 14px;display:grid;gap:8px;box-shadow:0 22px 50px rgba(29,26,43,.12)}
+.lbcard .cv{position:relative;aspect-ratio:1/1;background:var(--bg);border-radius:14px;overflow:hidden}
+.lbcard .cv.tall{aspect-ratio:300/340}
+.lbcard .cv > svg{width:100%;height:100%;display:block}
+.lbcard .st{position:absolute;width:24%}
+.lbcard .w{font-family:var(--hand);font-size:26px;line-height:1.12;margin:2px 4px 0}
+.lbcard .meta{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--mute);padding:0 4px}
+.lbcard .meta span:first-child{font-weight:600;color:var(--ink)}
+.lbcard.dried .cv{filter:sepia(.75) saturate(.45) contrast(.92) brightness(.98)}
+.lbinner .gcard{width:100%}
+.lbhint{text-align:center;font-size:12px;color:var(--mute);margin:4px 0 0}
+.lbbar{display:flex;gap:10px;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px))}
+.expimg{width:100%;max-height:52vh;object-fit:contain;border-radius:14px;border:1px solid var(--line);background:#fff;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.screen.behind{transform:none}}
+</style>
+</head>
+<body>
+
+<svg class="defs" aria-hidden="true">
+  <defs>
+    <pattern id="htPink" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#FFE1F0"/><circle cx="3" cy="3" r="1.5" fill="#FF48B0"/></pattern>
+    <pattern id="htBlue" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1" fill="#0078BF" fill-opacity=".45"/></pattern>
+    <pattern id="htYel" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1.3" fill="#1D1A2B" fill-opacity=".35"/></pattern>
+    <filter id="cut" x="-25%" y="-25%" width="150%" height="150%">
+      <feMorphology in="SourceAlpha" operator="dilate" radius="2.6" result="d"/>
+      <feFlood flood-color="#ffffff"/><feComposite in2="d" operator="in" result="w"/>
+      <feOffset in="d" dx="1.2" dy="1.8" result="s"/>
+      <feFlood flood-color="#1D1A2B" flood-opacity=".2"/><feComposite in2="s" operator="in" result="sh"/>
+      <feMerge><feMergeNode in="sh"/><feMergeNode in="w"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+</svg>
+
+<div class="shell" id="shell">
+  <div id="root">
+    <div class="screen" id="rs" aria-busy="true">
+      <header class="top"><h1 class="brand"><svg viewBox="0 0 120 120" aria-hidden="true"><g style="mix-blend-mode:multiply"><circle cx="60" cy="30" r="15" fill="#FF48B0"/><circle cx="76.6" cy="42.1" r="15" fill="#0078BF" fill-opacity=".85"/><circle cx="70.3" cy="61.6" r="15" fill="#FF48B0"/><circle cx="49.7" cy="61.6" r="15" fill="#0078BF" fill-opacity=".85"/><circle cx="43.4" cy="42.1" r="15" fill="#FF48B0"/></g><circle cx="60" cy="47" r="6" fill="#FFE800"/><rect x="18" y="72" width="84" height="38" rx="6" fill="#fff" stroke="#1D1A2B" stroke-width="5"/><path d="M20 74 L60 94 L100 74" fill="none" stroke="#1D1A2B" stroke-width="5" stroke-linejoin="round"/></svg><span>bloom<em>note</em></span></h1></header>
+      <div class="scroll" style="display:grid;gap:12px;align-content:start">
+        <div class="row"><div class="sk" style="width:120px;height:38px;border-radius:19px"></div><div class="sk" style="width:120px;height:38px;border-radius:19px"></div></div>
+        <div class="sk" style="width:100%;height:42vh"></div>
+        <div class="row" style="flex-wrap:nowrap;overflow:hidden"><div class="sk" style="flex:none;width:70px;height:62px"></div><div class="sk" style="flex:none;width:70px;height:62px"></div><div class="sk" style="flex:none;width:70px;height:62px"></div><div class="sk" style="flex:none;width:70px;height:62px"></div><div class="sk" style="flex:none;width:70px;height:62px"></div></div>
+      </div>
+    </div>
+  </div>
+  <nav class="nav" id="nav" aria-label="Main"></nav>
+</div>
+<div class="sheet" id="sheet" hidden><div class="panel" id="sheetPanel" role="dialog" aria-modal="true"></div></div>
+<div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="Full-screen viewer"></div>
+<div class="toast" id="toast" role="status" hidden></div>
+<div class="grain" aria-hidden="true"></div>
+
+<script>
+const MAXS=30;
+const INK={pink:'#FF48B0',red:'#F15060',yellow:'#FFE800',blue:'#0078BF',green:'#00A95C',purple:'#765BA7',orange:'#FF6C2F',white:'#FFFFFF',dark:'#1D1A2B',lilac:'#B7A1E0',sky:'#5FB3E6'};
+const MOODS=['Confession','In love','Crush','Anniversary','Thanks','Sorry','Friends','For me','Cheer up'];
+const STYLES=['Bold','Fresh','Vintage','Minimal','Wild'];
+
+const F={
+ amaryllis:{n:'Amaryllis',alt:'Hippeastrum',t:'star',c1:INK.red,c2:INK.pink,words:['Pride','Determination','Radiance','Longing to be loved'],
+  meaning:'Named after the shepherdess Amaryllis of Greek myth. She waited at her beloved’s door for thirty nights, and on the last night this red flower bloomed there. Its language is about loving proudly: determined, confident, radiant.',
+  tip:'For a partner it reads as “I’m proud to love you.” Red is the most passionate, white is purer, red-and-white stripes are softer. One to three thick stems are enough; arrange them simply. In season November to January.',
+  say:'I’m proud to love you.',styles:['Bold','Minimal'],moods:['Confession','In love','Anniversary','Cheer up'],toxic:'Bulbs and stems are toxic to cats and dogs. Keep it out of reach.'},
+ redrose:{n:'Red Rose',t:'rose',c1:INK.red,c2:INK.pink,words:['Passion','I love you'],meaning:'The most direct way to say “I love you.”',tip:'Numbers matter too: 1 stem means “only you”, 11 means “for a lifetime”, 99 means “forever”.',styles:['Bold','Vintage'],moods:['Confession','In love','Anniversary']},
+ pinkrose:{n:'Pink Rose',t:'rose',c1:INK.pink,c2:INK.red,words:['First love','Gratitude','Gentleness'],meaning:'A crush that is slowly moving closer.',tip:'Softer than red if you don’t want to come on too strong.',styles:['Fresh','Vintage'],moods:['Crush','Confession','Thanks']},
+ whiterose:{n:'White Rose',t:'rose',c1:INK.white,c2:INK.blue,words:['Purity','Respect','Innocence'],meaning:'A clean, sincere feeling with nothing hidden.',tip:'Paired with reds, it makes a bouquet feel calmer and more refined.',styles:['Minimal','Fresh'],moods:['Anniversary','Sorry','Confession']},
+ yellowrose:{n:'Yellow Rose',t:'rose',c1:INK.yellow,c2:INK.orange,words:['Friendship','Apology'],meaning:'Bright friendship, and a good way to say sorry.',tip:'Best for friends.',styles:['Fresh'],moods:['Friends','Sorry','Thanks'],warn:'In Victorian flower language it can also mean jealousy or fading love. Avoid it for a confession or a partner.',wm:['Confession','In love','Crush'],pen:15},
+ tulip:{n:'Tulip',t:'tulip',c1:INK.pink,c2:INK.red,words:['Declaration of love','Care'],meaning:'Red declares love, pink means lasting affection, purple means endless love.',tip:'Tulips keep growing and turn toward the light, so the bouquet changes shape by the next day.',styles:['Minimal','Fresh'],moods:['Confession','In love','Cheer up']},
+ sunflower:{n:'Sunflower',t:'sun',c1:INK.yellow,c2:INK.orange,words:['Adoration','Loyalty','Warmth'],meaning:'“I only have eyes for you,” and a cheerful wish for a good day.',tip:'One stem can carry a whole bouquet. A great pick-me-up.',styles:['Wild','Bold'],moods:['Cheer up','Friends','For me','Crush']},
+ lisianthus:{n:'Lisianthus',t:'rose',c1:INK.lilac,c2:INK.purple,words:['Lasting love','Appreciation'],meaning:'Petals like thin silk, for a sincere feeling that does not change.',tip:'Lasts about a week in a vase.',styles:['Fresh','Vintage','Minimal'],moods:['Anniversary','Thanks','In love']},
+ gyp:{n:'Baby’s Breath',t:'cluster',c1:INK.white,c2:INK.blue,words:['Longing','Happy to support'],meaning:'“I’m happy to be your supporting role,” and many small thoughts of someone.',tip:'The universal filler. It keeps its shape when dried, so it suits the Withered collection.',styles:['Wild','Fresh'],moods:['Crush','Friends','Anniversary'],filler:1},
+ euca:{n:'Eucalyptus',t:'leaf',c1:INK.green,c2:INK.blue,words:['Blessing','Memory','Protection'],meaning:'A blessing and a little protection, with a cool, woody scent.',tip:'The most reliable foliage for drying. It turns a soft grey-green.',styles:['Vintage','Wild','Minimal'],moods:['For me','Anniversary','Cheer up','Thanks','In love'],filler:1},
+ hydrangea:{n:'Hydrangea',t:'cluster',c1:INK.sky,c2:INK.purple,words:['Hope','Reunion','Togetherness'],meaning:'Blooms in full clusters, meaning reunion and a happy home.',tip:'Very thirsty. If a head wilts, soak the whole flower in water to revive it.',styles:['Vintage','Fresh'],moods:['Friends','Thanks','Anniversary'],warn:'Some traditions read blue hydrangea as fickle. For a confession, choose pink or white.',wm:['Confession','In love'],pen:5},
+ peony:{n:'Peony',t:'peony',c1:INK.pink,c2:INK.red,words:['Devotion'],meaning:'Devotion to one person. In the Chinese Book of Songs, young couples gave peonies to show their love.',tip:'In season May to June. Buds open to several times their size.',styles:['Bold','Vintage'],moods:['Confession','In love','Anniversary'],warn:'In old Chinese it was also called “the parting herb”. Fine for love; for a long-distance partner, add a line explaining it.',wm:['Confession','In love'],pen:0},
+ daisy:{n:'Daisy',t:'daisy',c1:INK.white,c2:INK.blue,words:['Secret love','Innocence'],meaning:'Love kept deep in the heart, for feelings you haven’t said out loud.',tip:'A small handful with baby’s breath is a classic sweet combination.',styles:['Fresh','Wild'],moods:['Crush','Friends','For me']},
+ carnation:{n:'Carnation',t:'carn',c1:INK.pink,c2:INK.red,words:['Motherly love','Gratitude'],meaning:'Gentle thanks, and the flower of Mother’s Day.',tip:'Lasts very long. Good for parents and teachers.',styles:['Vintage'],moods:['Thanks'],warn:'Most people link it with Mother’s Day, so it can feel a little parental for a partner.',wm:['Confession','In love','Crush'],pen:12},
+ lily:{n:'Lily',t:'star',c1:INK.white,c2:INK.pink,words:['Lasting union','Purity'],meaning:'A wish for a long, happy union. Common at weddings and anniversaries.',tip:'Trim the pollen after it opens so it does not stain clothes.',styles:['Minimal','Bold'],moods:['Anniversary','In love','Thanks'],toxic:'Highly toxic to cats, including the pollen and vase water. Avoid it in homes with cats.'},
+ whitemum:{n:'White Mum',alt:'White chrysanthemum',t:'daisy',c1:INK.white,c2:INK.blue,words:['Mourning','Remembrance'],meaning:'In China it is mainly used at funerals and memorials.',tip:'Not recommended as a gift.',styles:['Minimal'],moods:[],warn:'Avoid giving it to anyone as a present, especially a partner.',wm:MOODS,pen:45,avoid:1},
+ lavender:{n:'Lavender',t:'spike',c1:INK.purple,c2:INK.blue,words:['Waiting for love','Calm'],meaning:'Waiting for love, and the scent of rest.',tip:'Keeps its scent after drying. Perfect for pressing into the album.',styles:['Wild','Fresh'],moods:['Crush','For me'],filler:1},
+ forgetmenot:{n:'Forget-me-not',t:'forget',c1:INK.sky,c2:INK.blue,words:['Remember me','Lasting memory'],meaning:'The name is the message: remember me.',tip:'Dries naturally and keeps its colour for a long time.',styles:['Vintage','Wild'],moods:['Anniversary','Crush','In love'],filler:1},
+ freesia:{n:'Freesia',t:'tulip',c1:INK.yellow,c2:INK.pink,words:['Trust','Quiet strength'],meaning:'A light scent that stands for trust and quiet strength.',tip:'Smells lovely. Good for a bedside vase.',styles:['Fresh'],moods:['Cheer up','Friends','For me']},
+ foxtail:{n:'Foxtail',alt:'Foxtail grass',t:'spike',c1:'#C8D93A',c2:INK.green,words:['Secret crush','Resilience'],meaning:'A secret crush and quiet resilience. A small feeling you can find by the roadside.',tip:'Very cheap but full of story. It makes a bouquet feel relaxed.',styles:['Wild'],moods:['Crush','For me'],filler:1},
+ pingpong:{n:'Ping Pong Mum',t:'ball',c1:'#D7E85A',c2:INK.green,words:['Fulfilment','Happiness'],meaning:'Perfectly round, meaning fulfilment and joy.',tip:'Looks nothing like a traditional chrysanthemum, so there is no funeral association. Stays fresh for about a week.',styles:['Minimal','Fresh'],moods:['For me','Friends','Cheer up']},
+ ranunculus:{n:'Ranunculus',t:'rose',c1:'#FF9466',c2:INK.red,words:['Radiant charm','You dazzle me'],meaning:'Hundreds of paper-thin petals that say “I find you charming.”',tip:'Opens slowly over a week; buy them half-closed.',styles:['Fresh','Vintage'],moods:['Confession','Crush','In love']},
+ anemone:{n:'Anemone',t:'anem',c1:INK.white,c2:INK.blue,words:['Anticipation','Fragile love'],meaning:'Named after the Greek word for wind. It stands for anticipation and a love that needs care.',tip:'The dark centre makes it look modern. Petals close at night.',styles:['Minimal','Bold'],moods:['Anniversary','Thanks','Crush'],warn:'In Victorian flower language it could also mean “forsaken”. Pair it with clearly romantic flowers for a confession.',wm:['Confession'],pen:5},
+ camellia:{n:'Camellia',t:'rose',c1:'#E5287D',c2:INK.red,words:['Adoration','Longing for you'],meaning:'Red camellia means “you’re a flame in my heart”; pink means longing for you.',tip:'Waxy petals last well. Float a single head in a bowl.',styles:['Vintage','Minimal'],moods:['In love','Anniversary','Crush']},
+ gardenia:{n:'Gardenia',t:'rose',c1:INK.white,c2:INK.yellow,words:['Secret love','Joy'],meaning:'In Victorian times it was given to say “I love you in secret.”',tip:'Very fragrant. Don’t touch the petals; they brown easily.',styles:['Minimal','Fresh'],moods:['Crush','In love']},
+ lilyvalley:{n:'Lily of the Valley',t:'bell',c1:INK.white,c2:INK.green,words:['Return of happiness','Sweetness'],meaning:'The return of happiness. In France people give it to each other on 1 May for luck.',tip:'Tiny but very fragrant; a small posy is enough.',styles:['Minimal','Fresh'],moods:['Anniversary','Cheer up','Thanks'],toxic:'Every part is toxic to pets and people. Keep away from cats, dogs and children.'},
+ orchid:{n:'Orchid',t:'orchid',c1:'#D98AD3',c2:INK.purple,words:['Refinement','Love','Strength'],meaning:'Elegance and rare beauty; often given for love and strength.',tip:'Moth orchids in a pot can bloom for months.',styles:['Minimal','Bold'],moods:['Anniversary','In love','Thanks']},
+ calla:{n:'Calla Lily',t:'calla',c1:INK.white,c2:INK.yellow,words:['Magnificent beauty','Purity'],meaning:'One clean curve that stands for striking beauty.',tip:'Three stems in a tall vase is a whole arrangement.',styles:['Minimal'],moods:['Anniversary','In love'],toxic:'Toxic to cats and dogs if chewed.'},
+ iris:{n:'Iris',t:'star',c1:'#6E5BD6',c2:INK.blue,words:['Faith','Wisdom','Hope'],meaning:'Named after the Greek messenger goddess of the rainbow: faith, wisdom and hope.',tip:'Buds open one after another along the stem.',styles:['Vintage','Minimal'],moods:['Cheer up','Thanks','Friends']},
+ lilac:{n:'Lilac',t:'cluster',c1:INK.lilac,c2:INK.purple,words:['First love','Youthful innocence'],meaning:'The flower of first love and young feelings.',tip:'Short vase life; split the woody stem ends and keep it cool.',styles:['Vintage','Fresh'],moods:['Crush','Confession']},
+ cosmos:{n:'Cosmos',t:'cosmos',c1:INK.pink,c2:INK.red,words:['Harmony','Joy in love'],meaning:'From the Greek word for order and harmony.',tip:'Light, airy stems that move in the breeze.',styles:['Wild','Fresh'],moods:['Friends','Crush','For me']},
+ gerbera:{n:'Gerbera',t:'daisy',c1:'#FF7A3D',c2:INK.pink,words:['Cheerfulness','Innocence'],meaning:'Pure cheerfulness in one big round face.',tip:'Use shallow water; the stems rot if they stand too deep.',styles:['Fresh','Bold'],moods:['Cheer up','Friends','For me']},
+ chamomile:{n:'Chamomile',t:'daisy',c1:INK.white,c2:INK.yellow,words:['Energy in adversity','Patience'],meaning:'Strength when things are hard.',tip:'Smells like apples. Lovely in a small jam jar.',styles:['Wild','Fresh'],moods:['Cheer up','For me']},
+ aster:{n:'Aster',t:'daisy',c1:INK.purple,c2:INK.blue,words:['Patience','Love','Daintiness'],meaning:'Named after the Greek word for star; patience and quiet love.',tip:'Long-lasting and cheap; good for filling out a bouquet.',styles:['Vintage','Wild'],moods:['Anniversary','Thanks']},
+ alstroemeria:{n:'Alstroemeria',t:'star',c1:'#FF8A5C',c2:INK.pink,words:['Friendship','Devotion'],meaning:'The flower of friendship and mutual support.',tip:'Lasts up to two weeks; pull off spent flowers.',styles:['Fresh'],moods:['Friends','Thanks']},
+ hyacinth:{n:'Hyacinth',t:'spike',c1:INK.purple,c2:INK.blue,words:['Please forgive me','Sincerity'],meaning:'Purple hyacinth means “I’m sorry, please forgive me.”',tip:'Strong spring scent. Good in a low vase.',styles:['Vintage','Fresh'],moods:['Sorry','Thanks'],toxic:'Bulbs are toxic to cats and dogs.'},
+ delphinium:{n:'Delphinium',t:'spike',c1:'#3E7FD9',c2:INK.blue,words:['Open heart','Lightness'],meaning:'An open heart and lightness of spirit.',tip:'Tall spikes give height to the back of a bouquet.',styles:['Wild','Vintage'],moods:['Cheer up','Friends','Thanks'],toxic:'Toxic to pets and people if eaten.'},
+ stock:{n:'Stock',t:'spike',c1:'#F59AC4',c2:INK.pink,words:['Lasting beauty','Contentment'],meaning:'A happy, contented life and beauty that lasts.',tip:'Smells of cloves. Change the water often.',styles:['Vintage','Fresh'],moods:['Anniversary','Thanks']},
+ sweetpea:{n:'Sweet Pea',t:'cosmos',c1:'#E9A6E0',c2:INK.purple,words:['Blissful pleasure','Thank you'],meaning:'Victorians gave it to say “thank you for a lovely time.”',tip:'The more you cut, the more it blooms. Very fragrant.',styles:['Vintage','Fresh'],moods:['Thanks','Friends'],warn:'It was also used to say goodbye. Fine for thanks, less ideal for a confession.',wm:['Confession','In love'],pen:5},
+ marigold:{n:'Marigold',t:'carn',c1:'#FF9F1C',c2:INK.orange,words:['Warmth','Remembrance'],meaning:'Warm golden colour; in Mexico it guides spirits home on the Day of the Dead.',tip:'Hardy and long-lasting; a strong herbal smell.',styles:['Wild','Bold'],moods:['Friends','Cheer up'],warn:'It is closely linked with remembrance of the dead in some cultures. Avoid it for romance.',wm:['Confession','In love','Crush','Anniversary'],pen:10},
+ zinnia:{n:'Zinnia',t:'cosmos',c1:'#E5287D',c2:INK.orange,words:['Lasting affection','Missing a friend'],meaning:'Lasting affection and thoughts of a friend who is far away.',tip:'Bright summer colour; stems are hollow, so handle gently.',styles:['Wild','Bold'],moods:['Friends','Anniversary']},
+ dahlia:{n:'Dahlia',t:'peony',c1:'#B5174E',c2:INK.pink,words:['Commitment','Elegance','Inner strength'],meaning:'A lasting bond and inner strength.',tip:'Late summer to autumn; buy them almost fully open.',styles:['Bold','Vintage'],moods:['In love','Anniversary','Cheer up']},
+ protea:{n:'Protea',t:'sun',c1:'#F2809B',c2:INK.red,words:['Courage','Transformation'],meaning:'Named after the shape-shifting sea god Proteus: courage and change.',tip:'Lasts weeks and dries perfectly.',styles:['Bold','Wild'],moods:['Cheer up','For me']},
+ craspedia:{n:'Billy Buttons',alt:'Craspedia',t:'ball',c1:INK.yellow,c2:INK.orange,words:['Good health','Curiosity'],meaning:'Little golden drumsticks of good health and curiosity.',tip:'Dries with no effort and keeps its colour.',styles:['Minimal','Wild'],moods:['Cheer up','For me','Friends']},
+ allium:{n:'Allium',t:'ball',c1:INK.lilac,c2:INK.purple,words:['Unity','Patience','Good fortune'],meaning:'Hundreds of tiny flowers in one sphere: unity and good fortune.',tip:'A faint onion smell fades once the water is changed.',styles:['Minimal','Bold'],moods:['Anniversary','Friends']},
+ waxflower:{n:'Waxflower',t:'cluster',c1:'#F7C6D9',c2:INK.pink,words:['Lasting love','Riches'],meaning:'Small waxy blooms for a love that lasts.',tip:'Sturdy filler that holds up for two weeks.',styles:['Fresh','Wild'],moods:['In love','Anniversary'],filler:1},
+ statice:{n:'Statice',t:'forget',c1:'#8C6BD9',c2:INK.purple,words:['Remembrance','Never-ending love'],meaning:'A never-ending love that you remember.',tip:'The papery flowers barely change when dried.',styles:['Vintage','Wild'],moods:['Anniversary','Crush'],filler:1},
+ fern:{n:'Fern',t:'leaf',c1:'#3E9B5A',c2:INK.green,words:['Sincerity','Shelter'],meaning:'Sincerity and a safe place to be.',tip:'Mist the leaves to keep them fresh.',styles:['Wild','Minimal'],moods:['Thanks','Friends','For me'],filler:1},
+ olive:{n:'Olive Branch',t:'leaf',c1:'#8FA77A',c2:INK.green,words:['Peace','Reconciliation'],meaning:'The oldest symbol of peace. Ideal when you want to make up.',tip:'Silvery leaves look great dried.',styles:['Minimal','Vintage'],moods:['Sorry','Friends','Thanks'],filler:1},
+ wheat:{n:'Wheat',t:'spike',c1:'#D9B45A',c2:INK.orange,words:['Abundance','Prosperity'],meaning:'A wish for abundance and good harvests.',tip:'Already dry, so it lasts forever.',styles:['Wild','Vintage'],moods:['For me','Thanks','Anniversary'],filler:1},
+ cotton:{n:'Cotton',t:'ball',c1:INK.white,c2:INK.blue,words:['Gentleness','Comfort'],meaning:'Soft comfort and gentleness.',tip:'Keeps for years; a cosy autumn and winter stem.',styles:['Minimal','Vintage'],moods:['Sorry','Cheer up','For me'],filler:1}
+};
+Object.keys(F).forEach(k=>F[k].id=k);
+
+const PRESETS=[
+ {id:'p1',name:'Proud to love you',for:'Partner',note:'Amaryllis, white rose, eucalyptus',sel:{amaryllis:3,whiterose:2,euca:2},mood:'In love',style:'Minimal'},
+ {id:'p2',name:'First confession',for:'Confession',note:'Tulips in front, pink roses behind',sel:{tulip:5,pinkrose:2,gyp:2},mood:'Confession',style:'Fresh'},
+ {id:'p3',name:'High Pick · Monday reset',for:'For me',note:'Sunflowers and ping pong mums',sel:{sunflower:2,pingpong:3,freesia:2,euca:1},mood:'For me',style:'Fresh'},
+ {id:'p4',name:'High Pick · Quiet hour',for:'For me',note:'Lavender, daisies, a little green',sel:{lavender:3,daisy:3,euca:2},mood:'For me',style:'Wild'},
+ {id:'p5',name:'High Pick · Proud of me',for:'For me',note:'One amaryllis with round mums',sel:{amaryllis:1,pingpong:3,euca:2},mood:'For me',style:'Minimal'},
+ {id:'p7',name:'Please forgive me',for:'Sorry',note:'Hyacinth, olive branch, white rose',sel:{hyacinth:3,olive:2,whiterose:2},mood:'Sorry',style:'Vintage'},
+ {id:'p8',name:'First love, quietly',for:'Crush',note:'Lilac, ranunculus, statice',sel:{lilac:2,ranunculus:3,statice:2},mood:'Crush',style:'Vintage'},
+ {id:'p6',name:'Dries beautifully',for:'To dry',note:'Everything here dries well',sel:{euca:2,forgetmenot:3,gyp:2,lavender:2},mood:'Anniversary',style:'Vintage'},
+];
+const QUOTES={
+ 'Confession':['I wanted to tell you I like you as simply as a flower opens.','These flowers speak first. I’ll say the rest in person.','Just one thing today: I like you.'],
+ 'In love':['I’m proud to love you.','Every day with you feels like unwrapping fresh flowers.','You smile and I want to visit a florist.'],
+ 'Crush':['Some words are hidden in these flowers. If you noticed, now you know.','I was only passing a flower shop, and then I thought of you.'],
+ 'Anniversary':['I kept a flower for every day we’ve had.','Another year, and still you.'],
+ 'Thanks':['Thank you for staying when I wasn’t at my best.','These are ordinary flowers. Thank you for being anything but.'],
+ 'Sorry':['I was wrong. The flowers got here first; I’m right behind them.','Sorry. Next time I’ll be the first to give in.'],
+ 'Friends':['Friends are the family we choose. These are for the one I chose.','With you around, nothing feels too hard.'],
+ 'For me':['Well done. These are from me, to me.','I took good care of today. I earned flowers.','No need to wait for someone else to buy me flowers.'],
+ 'Cheer up':['You already shine. The flowers are just a reminder.','Take your time. You are doing great.']
+};
+const MOODLINE={'Confession':'I want to like you, properly.','In love':'With you, I’m sure.','Crush':'I like you. I just haven’t said it.','Anniversary':'I remember every one of these days.','Thanks':'Thank you for always being here.','Sorry':'I’m sorry. I want us to be okay.','Friends':'I’m lucky to have you.','For me':'I deserve to be treated well.','Cheer up':'You can do this. I believe in you.'};
+const KINDS=['To someone','For myself','From someone','Greeting','Occasion','Custom'];
+const kindLabel=c=>(c.kind||'To someone')==='Custom'?((c.kindCustom||'').trim()||'Custom'):(c.kind||'To someone');
+const toLine=c=>c.kind==='For myself'?'For me'+(c.to?' · '+c.to:''):c.kind==='From someone'?'From '+(c.from||'…'):'To '+(c.to||'…');
+const INKS=[[INK.blue,INK.pink],[INK.pink,INK.yellow],[INK.red,INK.green],[INK.dark,INK.yellow]];
+const PRINCIPLES=[
+ ['Answer “is this the right gift?” first','The biggest worry is sending the wrong message, so the match score and warnings sit right on top of the bouquet.'],
+ ['Build a bouquet without scrolling','The Bouquet screen fits on one screen: who it’s for, the bouquet, and a swipeable flower tray. Tap to add, hold to read.'],
+ ['One-handed, thumb first','People use this in a flower shop with flowers in one hand. Main actions sit in the bottom bar; every target is at least 44px.'],
+ ['One primary action per screen','Each screen has a single blue button. Everything else is an outlined or text button, or lives in the ••• menu.'],
+ ['Never lose a feeling','Everything saves automatically. Clearing and removing can be undone; deleting an album page asks first.']
+];
+
+/* ---------- icons ---------- */
+const sv=(d,extra='')=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${d}</svg>`;
+const IC={
+ book:sv('<path d="M5 4.5h11.5a1.5 1.5 0 0 1 1.5 1.5v14H6.5A1.5 1.5 0 0 1 5 18.5z"/><path d="M5 18.5A1.5 1.5 0 0 1 6.5 17H18"/><circle cx="11.5" cy="9.5" r="2"/><path d="M11.5 11.5v2.5"/>'),
+ heart:sv('<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/>'),
+ flower:sv('<circle cx="12" cy="4.8" r="2.6"/><circle cx="15.3" cy="8.1" r="2.6"/><circle cx="12" cy="11.4" r="2.6"/><circle cx="8.7" cy="8.1" r="2.6"/><path d="M12 14v7"/><path d="M12 18.5c-2.6 0-4-1.6-4.2-3.2 2.2 0 3.8 1 4.2 3.2z"/>'),
+ card:sv('<rect x="3" y="5.5" width="18" height="13" rx="1.5"/><path d="M3.5 6.5 12 13l8.5-6.5"/>'),
+ album:sv('<rect x="4" y="3.5" width="16" height="17" rx="1.5"/><circle cx="10" cy="10" r="2.2"/><path d="m20 16-4.5-4.5L8 19"/>'),
+ back:sv('<path d="M15 5l-7 7 7 7"/>','stroke-width="2"'),
+ more:sv('<circle cx="5.5" cy="12" r="1.3" fill="currentColor"/><circle cx="12" cy="12" r="1.3" fill="currentColor"/><circle cx="18.5" cy="12" r="1.3" fill="currentColor"/>'),
+ chev:sv('<path d="m9 5 7 7-7 7"/>'),
+ down:sv('<path d="m6 9 6 6 6-6"/>'),
+ star:sv('<path d="m12 3.5 2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.8l-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/>'),
+ plus:sv('<path d="M12 5v14M5 12h14"/>','stroke-width="2"'),
+ copy:sv('<rect x="8" y="8" width="12" height="12" rx="1.5"/><path d="M16 8V5.5A1.5 1.5 0 0 0 14.5 4h-9A1.5 1.5 0 0 0 4 5.5v9A1.5 1.5 0 0 0 5.5 16H8"/>'),
+ check:sv('<path d="m5 12.5 4.5 4.5L19 7.5"/>','stroke-width="2.2"'),
+ alert:sv('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.1"/>','stroke-width="2"'),
+ trash:sv('<path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13"/>'),
+ cog:sv('<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>'),
+ eraser:sv('<path d="m4 15 9-9 7 7-7 7H8z"/><path d="M9.5 9.5 16.5 16.5M8 20h12"/>'),
+ restore:sv('<path d="M4 12a8 8 0 1 0 2.3-5.7"/><path d="M4 4v4.5h4.5"/>'),
+ dry:sv('<path d="M12 21V10"/><path d="M12 10c0-3 1.5-5.5 4.5-6.5.4 3.4-1.4 6-4.5 6.5zM12 13c0-2.6-1.4-4.6-4-5.4-.4 2.8 1.2 5 4 5.4z"/>'),
+ layers:sv('<path d="m12 4 8.5 4.5L12 13 3.5 8.5z"/><path d="m3.5 12.5 8.5 4.5 8.5-4.5M3.5 16.5 12 21l8.5-4.5"/>'),
+ x:sv('<path d="M6 6l12 12M18 6 6 18"/>'),
+ search:sv('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>'),
+ download:sv('<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19.5h14"/>')
+};
+
+/* ---------- drawing ---------- */
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function rng(seed){let x=seed%2147483647;if(x<=0)x+=2147483646;return()=>(x=x*16807%2147483647)/2147483647}
+function hash(s){let h=7;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return h}
+function petals(t,a){
+  switch(t){
+   case 'rose':return `<circle r="13" ${a}/><circle cx="2" cy="-2" r="8.5" ${a}/>`;
+   case 'peony':{let s='';for(let i=0;i<8;i++)s+=`<ellipse cx="0" cy="-9" rx="7.5" ry="8" transform="rotate(${i*45})" ${a}/>`;return s+`<circle r="9" ${a}/>`}
+   case 'star':{let s='';for(let i=0;i<6;i++)s+=`<ellipse cx="0" cy="-9" rx="4.6" ry="10" transform="rotate(${i*60})" ${a}/>`;return s}
+   case 'daisy':{let s='';for(let i=0;i<14;i++)s+=`<ellipse cx="0" cy="-8.5" rx="2.3" ry="7.5" transform="rotate(${i*360/14})" ${a}/>`;return s}
+   case 'sun':{let s='';for(let i=0;i<16;i++)s+=`<ellipse cx="0" cy="-11" rx="3" ry="7" transform="rotate(${i*22.5})" ${a}/>`;return s}
+   case 'tulip':return `<path d="M-10 -5 Q-11 10 0 12 Q11 10 10 -5 L6 -13 L3 -5 L0 -14 L-3 -5 L-6 -13 Z" ${a}/>`;
+   case 'carn':{let p=[];for(let i=0;i<24;i++){const r=i%2?10.5:13.5,an=i*Math.PI/12;p.push((Math.cos(an)*r).toFixed(1)+','+(Math.sin(an)*r).toFixed(1))}return `<polygon points="${p.join(' ')}" ${a}/>`}
+   case 'cluster':{let s='';[[0,0],[-7,-3],[7,-3],[-4,-9],[4,-9],[-9,4],[9,4],[0,8],[-4,4],[4,4],[0,-5]].forEach(([x,y])=>s+=`<circle cx="${x}" cy="${y}" r="3.4" ${a}/>`);return s}
+   case 'forget':{let s='';[[0,-3],[-7,3],[7,2],[0,8]].forEach(([x,y])=>{for(let i=0;i<5;i++){const an=i*72*Math.PI/180;s+=`<circle cx="${(x+Math.sin(an)*2.6).toFixed(1)}" cy="${(y-Math.cos(an)*2.6).toFixed(1)}" r="2" ${a}/>`}});return s}
+   case 'leaf':{let s='';[[0,-16],[-6,-9],[6,-5],[-6,2],[6,7],[-5,13]].forEach(([x,y])=>s+=`<circle cx="${x}" cy="${y}" r="5" ${a}/>`);return s}
+   case 'spike':{let s='';for(let i=0;i<8;i++)s+=`<ellipse cx="${i%2?2:-2}" cy="${-20+i*3.6}" rx="3" ry="2.4" ${a}/>`;return s}
+   case 'ball':return `<circle r="12" ${a}/>`;
+   case 'anem':{let s='';for(let i=0;i<6;i++){const an=i*Math.PI/3;s+=`<circle cx="${(Math.sin(an)*7).toFixed(1)}" cy="${(-Math.cos(an)*7).toFixed(1)}" r="6.4" ${a}/>`}return s}
+   case 'cosmos':{let s='';for(let i=0;i<8;i++)s+=`<path d="M-4.5 -3 Q-5 -13 0 -14 Q5 -13 4.5 -3 Z" transform="rotate(${i*45})" ${a}/>`;return s}
+   case 'calla':return `<path d="M1 13 C-9 7 -11 -5 -6 -14 C-2 -10 6 -15 11 -11 C7 -3 7 6 1 13Z" ${a}/>`;
+   case 'bell':return [[-7,3],[0,-5],[7,4]].map(([x,y])=>`<path d="M${x-4.5} ${y} Q${x-4.5} ${y-7} ${x} ${y-7} Q${x+4.5} ${y-7} ${x+4.5} ${y} Q${x+2.5} ${y+2} ${x} ${y} Q${x-2.5} ${y+2} ${x-4.5} ${y}Z" ${a}/>`).join('');
+   case 'orchid':return `<ellipse cx="0" cy="-8" rx="5" ry="7" ${a}/><ellipse cx="-8" cy="-1" rx="7" ry="5" transform="rotate(-15 -8 -1)" ${a}/><ellipse cx="8" cy="-1" rx="7" ry="5" transform="rotate(15 8 -1)" ${a}/><ellipse cx="-4.5" cy="7" rx="4" ry="5.5" transform="rotate(25 -4.5 7)" ${a}/><ellipse cx="4.5" cy="7" rx="4" ry="5.5" transform="rotate(-25 4.5 7)" ${a}/>`;
+  }return ''
+}
+function detail(f){
+  switch(f.t){
+   case 'rose':case 'peony':return `<path d="M0 0a3 3 0 1 1 3 3a5.5 5.5 0 1 1 -6.5-6a8 8 0 0 1 9.5 2" fill="none" stroke="${INK.dark}" stroke-opacity=".4" stroke-width="1.2" stroke-linecap="round"/>`;
+   case 'star':return `<circle r="3.2" fill="${INK.yellow}"/><path d="M0 0l-3-7M0 0l3-7M0 0l0-8" stroke="${INK.dark}" stroke-opacity=".45" stroke-width=".9"/>`;
+   case 'daisy':return `<circle r="4.8" fill="${INK.yellow}"/><circle r="4.8" fill="url(#htYel)"/>`;
+   case 'sun':return `<circle r="8" fill="#6A3F2E"/><circle r="8" fill="url(#htYel)"/>`;
+   case 'carn':{let p=[];for(let i=0;i<16;i++){const r=i%2?5:7.5,an=i*Math.PI/8+.2;p.push((Math.cos(an)*r).toFixed(1)+','+(Math.sin(an)*r).toFixed(1))}return `<polygon points="${p.join(' ')}" fill="none" stroke="${INK.dark}" stroke-opacity=".35" stroke-width="1"/>`}
+   case 'tulip':return `<path d="M0 -12 L0 10" stroke="${INK.dark}" stroke-opacity=".2" stroke-width="1"/>`;
+   case 'forget':return [[0,-3],[-7,3],[7,2],[0,8]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.1" fill="${INK.yellow}"/>`).join('');
+   case 'ball':return `<circle r="12" fill="url(#htBlue)" opacity=".7"/>`;
+   case 'anem':return `<circle r="6.6" fill="none" stroke="${INK.dark}" stroke-width="1.1" stroke-dasharray="1 1.6" opacity=".6"/><circle r="4.4" fill="${INK.dark}"/>`;
+   case 'cosmos':return `<circle r="3.4" fill="${INK.yellow}"/><circle r="3.4" fill="url(#htYel)"/>`;
+   case 'calla':return `<path d="M0 8 Q1 0 -1 -8" stroke="${INK.yellow}" stroke-width="2.6" stroke-linecap="round" fill="none"/>`;
+   case 'bell':return `<path d="M-7 -4 Q0 -14 7 -3" stroke="${INK.green}" stroke-width="1.2" fill="none"/>`;
+   case 'orchid':return `<ellipse cx="0" cy="3" rx="3" ry="3.6" fill="${INK.purple}" opacity=".8"/><circle cx="0" cy="-1" r="1.6" fill="${INK.yellow}"/>`;
+  }return ''
+}
+function head(f){
+  if(f.img)return `<circle r="14" fill="${f.c2||INK.pink}" transform="translate(1.8,1.4)" style="mix-blend-mode:multiply" opacity=".75"/><image href="${f.img}" x="-13.5" y="-13.5" width="27" height="27" preserveAspectRatio="xMidYMid slice"/><circle r="13.5" fill="none" stroke="#fff" stroke-width="1.2"/>`;
+  const white=f.c1===INK.white;
+  const fill=`fill="${f.c1}"${white?` stroke="${INK.blue}" stroke-width=".6" stroke-opacity=".5"`:''}`;
+  return `<g style="mix-blend-mode:multiply">${petals(f.t,fill)}</g><g transform="translate(1.6,1.1)" style="mix-blend-mode:multiply">${petals(f.t,`fill="none" stroke="${f.c2}" stroke-width="1.1"`)}</g>${detail(f)}`;
+}
+function tileSVG(f,cls=''){
+  const tall=f.t==='leaf'||f.t==='spike';
+  return `<svg class="${cls}" viewBox="-20 -24 40 46" aria-hidden="true"><path d="M0 ${tall?2:8} Q2 16 0 22" stroke="${INK.green}" stroke-width="1.6" fill="none"/>${f.t==='leaf'?'':`<ellipse cx="5" cy="15" rx="4.5" ry="2" fill="${INK.green}" transform="rotate(-30 5 15)" opacity=".8"/>`}<g transform="translate(0,${tall?2:-2}) scale(1.05)">${head(f)}</g></svg>`;
+}
+function expand(sel){const a=[];Object.entries(sel).forEach(([k,n])=>{if(F[k])for(let i=0;i<n;i++)a.push(F[k])});return a.slice(0,MAXS)}
+function bouquetSVG(sel,opt={}){
+  const items=expand(sel);const n=items.length;const R=rng(hash(JSON.stringify(sel))+7);
+  const vb=opt.square?'0 20 300 300':'0 0 300 340';
+  if(!n)return `<svg viewBox="${vb}" class="${opt.cls||''}" role="img" aria-label="Empty bouquet"><path d="M76 206 L150 334 L224 206 Q187 224 150 214 Q113 224 76 206Z" fill="none" stroke="#C9C5BC" stroke-width="1.5" stroke-dasharray="5 5"/></svg>`;
+  const spread=n>20?56:n>14?50:40;const angs=[];for(let i=0;i<n;i++)angs.push(n===1?0:-spread+2*spread*i/(n-1));
+  const order=angs.map((a,i)=>i).sort((x,y)=>Math.abs(angs[x])-Math.abs(angs[y]));
+  const foc=items.filter(f=>!f.filler),fil=items.filter(f=>f.filler);
+  const assigned=[];let oi=0;foc.forEach(f=>assigned.push({f,a:angs[order[oi++]]}));
+  for(let j=order.length-1;j>=oi;j--)assigned.push({f:fil.pop(),a:angs[order[j]]});
+  const draw=[...assigned].sort((p,q)=>(q.f.filler?1:0)-(p.f.filler?1:0)||Math.abs(q.a)-Math.abs(p.a));
+  const sc=n>22?.74:n>15?.82:n>9?.92:n>5?1.05:1.25;
+  let stems='',heads='',grown=0;
+  draw.forEach(({f,a})=>{
+    const ar=(a+(R()-.5)*8)*Math.PI/180;const len=(f.filler?168:150)-Math.abs(a)*.55+R()*26+(n>15?(R()-.5)*44:0);
+    const x=150+Math.sin(ar)*len,y=300-Math.cos(ar)*len;
+    const cx=150+Math.sin(ar)*len*.5+(R()-.5)*14;
+    stems+=`<path d="M150 300 Q${cx.toFixed(1)} ${(300-len*.5).toFixed(1)} ${x.toFixed(1)} ${(y+6).toFixed(1)}" stroke="${INK.green}" stroke-width="2" fill="none" style="mix-blend-mode:multiply"/>`;
+    if(!f.filler&&R()>.4)stems+=`<ellipse cx="${(cx+6).toFixed(1)}" cy="${(300-len*.45).toFixed(1)}" rx="7" ry="2.6" fill="${INK.green}" opacity=".75" transform="rotate(${(a-30).toFixed(0)} ${(cx+6).toFixed(1)} ${(300-len*.45).toFixed(1)})"/>`;
+    const rot=(a*.4+(R()-.5)*20).toFixed(0),s2=(sc*(f.filler?1:1.15)).toFixed(2);const g=opt.grow===f.id&&!grown;if(g)grown=1;
+    heads+=`<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})"><g class="hd${g?' grow'+(opt.late?' late':''):''}" style="--dx:${((x-150)*1.1).toFixed(0)}px;--dy:${(-70-Math.abs(a)*2).toFixed(0)}px;--r:${(a*3).toFixed(0)}deg"><g transform="rotate(${rot}) scale(${s2})">${head(f)}</g></g></g>`;
+  });
+  return `<svg viewBox="${vb}" class="${opt.cls||''}" role="img" aria-label="Bouquet: ${esc(items.map(f=>f.n).join(', '))}">
+   <path d="M64 196 L150 336 L236 196 Q150 168 64 196Z" fill="url(#htBlue)"/>${stems}${heads}
+   <path d="M76 206 L150 334 L224 206 Q187 224 150 214 Q113 224 76 206Z" fill="url(#htPink)"/>
+   <path d="M76 206 L150 334 L224 206 Q187 224 150 214 Q113 224 76 206Z" fill="none" stroke="${INK.blue}" stroke-width="1.2" transform="translate(2,1.5)"/>
+   <g transform="translate(150,286)" style="mix-blend-mode:multiply"><ellipse cx="-12" cy="0" rx="13" ry="7" fill="${INK.yellow}" transform="rotate(-18)"/><ellipse cx="12" cy="0" rx="13" ry="7" fill="${INK.yellow}" transform="rotate(18)"/><path d="M-3 4 L-12 26 M3 4 L13 25" stroke="${INK.yellow}" stroke-width="5" stroke-linecap="round"/><circle r="4.5" fill="${INK.red}"/></g>
+  </svg>`;
+}
+function emptyArt(kind){
+  const B=INK.blue;
+  if(kind==='search')return `<svg viewBox="0 0 120 90" aria-hidden="true"><circle cx="52" cy="40" r="20" fill="url(#htPink)"/><circle cx="54" cy="42" r="20" fill="none" stroke="${B}" stroke-width="2.5"/><path d="M69 57l16 16" stroke="${B}" stroke-width="4" stroke-linecap="round"/></svg>`;
+  if(kind==='dried')return `<svg viewBox="0 0 120 90" aria-hidden="true"><path d="M60 84 Q58 50 70 26" stroke="#8A6A4A" stroke-width="2.2" fill="none"/><g transform="translate(70,24) rotate(30)" opacity=".85"><ellipse rx="6" ry="11" fill="#C9A27A"/><ellipse rx="6" ry="11" fill="#B88A63" transform="rotate(60)"/><ellipse rx="6" ry="11" fill="#D2B08A" transform="rotate(120)"/></g><path d="M58 60q-12-2-16-12 12 0 16 12z" fill="#A8946E"/></svg>`;
+  return `<svg viewBox="0 0 120 90" aria-hidden="true"><path d="M60 46 Q66 26 84 22" stroke="${INK.green}" stroke-width="2.2" fill="none" stroke-dasharray="4 4"/><path d="M44 46h32l-5 38H49z" fill="url(#htPink)"/><path d="M46 48h32l-5 38H51z" fill="none" stroke="${B}" stroke-width="1.8"/><circle cx="86" cy="21" r="5" fill="${INK.pink}" opacity=".7"/></svg>`;
+}
+const emptyState=(kind,title,text,btn='')=>`<div class="empty">${emptyArt(kind)}<b>${esc(title)}</b><p>${esc(text)}</p>${btn}</div>`;
+
+/* ---------- pet stickers ---------- */
+const D=INK.dark;
+const PETS={
+ cat:`<path d="M13 24 L17 7 L28 18Z M47 24 L43 7 L32 18Z" fill="${INK.yellow}"/><path d="M16 21 L18 12 L24 18Z M44 21 L42 12 L36 18Z" fill="${INK.pink}"/><circle cx="30" cy="34" r="18" fill="${INK.yellow}"/><circle cx="23" cy="32" r="2.4" fill="${D}"/><circle cx="37" cy="32" r="2.4" fill="${D}"/><path d="M28 37h4l-2 2.4z" fill="${INK.pink}"/><path d="M11 36h8M11 40h8M41 36h8M41 40h8" stroke="${INK.blue}" stroke-width="1.4"/><ellipse cx="21" cy="39" rx="3" ry="1.8" fill="${INK.pink}" opacity=".7"/><ellipse cx="39" cy="39" rx="3" ry="1.8" fill="${INK.pink}" opacity=".7"/>`,
+ pup:`<circle cx="30" cy="33" r="17" fill="${INK.orange}"/><ellipse cx="13" cy="30" rx="6" ry="12" fill="${INK.blue}" transform="rotate(14 13 30)"/><ellipse cx="47" cy="30" rx="6" ry="12" fill="${INK.blue}" transform="rotate(-14 47 30)"/><ellipse cx="30" cy="40" rx="9" ry="7" fill="#FFE9D6"/><circle cx="23" cy="30" r="2.4" fill="${D}"/><circle cx="37" cy="30" r="2.4" fill="${D}"/><ellipse cx="30" cy="37" rx="3.4" ry="2.4" fill="${D}"/><path d="M27 43q3 3 6 0" stroke="${D}" stroke-width="1.3" fill="none"/>`,
+ bunny:`<ellipse cx="22" cy="14" rx="5.5" ry="13" fill="#FFD3EA"/><ellipse cx="38" cy="14" rx="5.5" ry="13" fill="#FFD3EA"/><ellipse cx="22" cy="15" rx="2.4" ry="9" fill="${INK.pink}"/><ellipse cx="38" cy="15" rx="2.4" ry="9" fill="${INK.pink}"/><circle cx="30" cy="37" r="16" fill="#FFD3EA"/><circle cx="24" cy="35" r="2.2" fill="${D}"/><circle cx="36" cy="35" r="2.2" fill="${D}"/><path d="M28 40h4l-2 2z" fill="${INK.red}"/><circle cx="20" cy="41" r="2.4" fill="${INK.pink}" opacity=".6"/><circle cx="40" cy="41" r="2.4" fill="${INK.pink}" opacity=".6"/>`,
+ duck:`<ellipse cx="32" cy="40" rx="18" ry="12" fill="${INK.yellow}"/><circle cx="24" cy="24" r="11" fill="${INK.yellow}"/><path d="M12 24 L4 27 L12 30Z" fill="${INK.orange}"/><circle cx="22" cy="21" r="2" fill="${D}"/><path d="M30 40q8 -6 14 2" stroke="${INK.blue}" stroke-width="1.6" fill="none"/><path d="M46 36l6 -4 -2 7z" fill="${INK.yellow}"/>`,
+ hamster:`<circle cx="18" cy="17" r="5" fill="${INK.orange}"/><circle cx="42" cy="17" r="5" fill="${INK.orange}"/><ellipse cx="30" cy="34" rx="19" ry="17" fill="${INK.orange}"/><ellipse cx="30" cy="40" rx="11" ry="9" fill="#FFF3E2"/><circle cx="23" cy="30" r="2.2" fill="${D}"/><circle cx="37" cy="30" r="2.2" fill="${D}"/><ellipse cx="30" cy="35" rx="2" ry="1.4" fill="${INK.pink}"/><circle cx="17" cy="36" r="3.4" fill="${INK.pink}" opacity=".55"/><circle cx="43" cy="36" r="3.4" fill="${INK.pink}" opacity=".55"/>`,
+ frog:`<circle cx="20" cy="20" r="7" fill="${INK.green}"/><circle cx="40" cy="20" r="7" fill="${INK.green}"/><ellipse cx="30" cy="35" rx="19" ry="14" fill="${INK.green}"/><circle cx="20" cy="20" r="3.2" fill="#fff"/><circle cx="40" cy="20" r="3.2" fill="#fff"/><circle cx="20.6" cy="20.6" r="1.7" fill="${D}"/><circle cx="40.6" cy="20.6" r="1.7" fill="${D}"/><path d="M20 38q10 7 20 0" stroke="${D}" stroke-width="1.5" fill="none"/><circle cx="17" cy="35" r="2.6" fill="${INK.pink}" opacity=".6"/><circle cx="43" cy="35" r="2.6" fill="${INK.pink}" opacity=".6"/>`,
+ fish:`<path d="M8 32 Q24 12 42 32 Q24 52 8 32Z" fill="${INK.orange}"/><path d="M40 32 L54 22 L52 32 L54 42Z" fill="${INK.red}"/><circle cx="17" cy="29" r="2.3" fill="${D}"/><path d="M24 24q4 8 0 16" stroke="${INK.yellow}" stroke-width="1.8" fill="none"/><circle cx="12" cy="13" r="2.6" fill="none" stroke="${INK.blue}" stroke-width="1.3"/><circle cx="6" cy="6" r="1.6" fill="none" stroke="${INK.blue}" stroke-width="1.2"/>`
+};
+const PETNAME={cat:'cat',pup:'puppy',bunny:'bunny',duck:'duck',hamster:'hamster',frog:'frog',fish:'goldfish'};
+const petSVG=p=>`<svg viewBox="0 0 60 60" aria-hidden="true"><g filter="url(#cut)">${PETS[p]||''}</g></svg>`;
+
+/* ---------- state ---------- */
+const now=new Date();
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const TODAY=ymd(now);
+const days=(a,b=TODAY)=>Math.max(0,Math.round((new Date(b)-new Date(a))/864e5));
+const fmt=s=>{try{return new Date(s+'T12:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}catch(e){return s}};
+const seedAlbum=()=>[
+ {id:'s1',title:'First flowers',date:'2026-09-20',sel:{pinkrose:3,gyp:2,euca:1},words:'Walked past a florist and this colour looked like your smile.',from:'Him',stickers:[{p:'cat',x:70,y:6,r:12},{p:'duck',x:4,y:66,r:-10}],sample:1},
+ {id:'s2',title:'Late Wednesday',date:'2026-10-07',sel:{sunflower:1,pingpong:3,euca:2},words:'You worked so hard. The flowers do cute, you do rest.',from:'Him',stickers:[{p:'hamster',x:72,y:68,r:8}],sample:1},
+ {id:'s3',title:'That summer bunch',date:'2026-07-14',sel:{lavender:3,forgetmenot:2,gyp:2},words:'Don’t forget our day at the beach.',from:'Him',stickers:[{p:'fish',x:6,y:8,r:-14},{p:'frog',x:70,y:70,r:6}],sample:1}
+];
+const KEY='riso-huajian-en';
+const S={tab:'mix',stack:[],sel:{amaryllis:3,whiterose:2,euca:2},mood:'In love',style:'Minimal',mine:[],album:seedAlbum(),
+  card:{to:'My love',body:'I’m proud to love you.',from:'',ink:0},q:{},dq:'',dm:'All',aview:'bloom',coll:'pre',stSel:null};
+try{const raw=localStorage.getItem(KEY);if(raw){const o=JSON.parse(raw);['sel','mood','style','mine','album','card','custom'].forEach(k=>{if(o[k]!==undefined)S[k]=o[k]})}}catch(e){}
+S.album.forEach(e=>{delete e.withered;delete e.dried});S.custom=Array.isArray(S.custom)?S.custom:[];S.custom.forEach(c=>{if(c&&c.id)F[c.id]=c});
+if(!MOODS.includes(S.mood))S.mood='In love';if(!STYLES.includes(S.style))S.style='Minimal';
+function save(){try{localStorage.setItem(KEY,JSON.stringify({sel:S.sel,mood:S.mood,style:S.style,mine:S.mine,album:S.album,card:S.card,custom:S.custom}));return true}catch(e){return false}}
+const $=id=>document.getElementById(id);
+const total=()=>Object.values(S.sel).reduce((a,b)=>a+b,0);
+const snap=()=>JSON.stringify({sel:S.sel,mine:S.mine,album:S.album,stSel:S.stSel});
+const restore=s=>{const o=JSON.parse(s);S.sel=o.sel;S.mine=o.mine;S.album=o.album;S.stSel=o.stSel;save();refresh()};
+function haptic(){try{navigator.vibrate&&navigator.vibrate(8)}catch(e){}}
+
+let tt,undoFn=null;
+function toast(msg,{undo,err}={}){
+  const t=$('toast');undoFn=undo||null;
+  t.className='toast'+(err?' err':'');
+  t.innerHTML=`${err?IC.alert:IC.check}<span>${esc(msg)}</span>${undo?'<button data-a="undo">Undo</button>':''}`;
+  t.hidden=false;t.style.animation='none';void t.offsetWidth;t.style.animation='';
+  clearTimeout(tt);tt=setTimeout(()=>{t.hidden=true;undoFn=null},undo?4500:2200);
+}
+
+/* ---------- analysis ---------- */
+function analyze(){
+  const keys=Object.keys(S.sel).filter(k=>S.sel[k]>0&&F[k]);if(!keys.length)return null;
+  const fl=keys.map(k=>F[k]),n=fl.length;
+  const mh=fl.filter(f=>f.moods.includes(S.mood)).length/n;
+  const sh=fl.filter(f=>f.styles.includes(S.style)).length/n;
+  const cnt={};fl.forEach(f=>f.styles.forEach(s=>cnt[s]=(cnt[s]||0)+1));
+  const coh=Math.max(...Object.values(cnt),0)/n;
+  const warns=fl.filter(f=>f.warn&&f.wm&&f.wm.includes(S.mood));
+  let score=Math.round(42*mh+33*sh+25*coh)-warns.reduce((a,f)=>a+(f.pen||0),0);
+  score=Math.max(0,Math.min(100,score));
+  const tier=score>=80?'Perfect match':score>=62?'Good match':score>=42?'Needs a tweak':'Mixed signals';
+  const sugg=Object.values(F).filter(f=>!S.sel[f.id]&&!f.avoid&&f.moods.includes(S.mood)&&f.styles.includes(S.style)).slice(0,4);
+  const off=fl.filter(f=>!f.moods.includes(S.mood)&&!f.avoid);
+  return {fl,mh,sh,coh,score,tier,warns,toxic:fl.filter(f=>f.toxic),sugg,off};
+}
+
+/* ---------- views ---------- */
+const chips=(list,cur,act,cls='')=>`<div class="chips ${cls}">${list.map(x=>`<button class="chip" data-a="${act}" data-v="${esc(x)}" aria-pressed="${x===cur}">${esc(x)}</button>`).join('')}</div>`;
+function dictList(){
+  const q=S.dq.trim().toLowerCase();
+  const l=Object.values(F).filter(f=>f.id!=='amaryllis').filter(f=>S.dm==='All'||f.moods.includes(S.dm)).filter(f=>!q||(f.n+(f.alt||'')+f.words.join(' ')+f.meaning).toLowerCase().includes(q));
+  return l.length?l.map(f=>`<button class="frow" data-a="openFlower" data-v="${f.id}">${tileSVG(f,'th')}<span><b>${esc(f.n)}</b>${f.warn||f.avoid?'<i class="dot" aria-label="Has a warning"></i>':''}<small>${f.custom?'Yours · ':''}${esc(f.words.join(' · '))}</small></span><span class="chev">${IC.chev}</span></button>`).join(''):
+    emptyState('search','No flowers found','Try another word, like “memory” or “love”.',`<button class="textbtn" data-a="clearSearch">Clear search</button>`);
+}
+function presetRow(c,mine){return `<div class="presetrow"><button class="load" data-a="loadColl" data-v="${c.id}"><span class="mini">${bouquetSVG(c.sel,{square:1})}</span><span><span class="tagline">${esc(c.for||'Saved')}</span><b>${esc(c.name)}</b><small>${esc(c.note||Object.keys(c.sel).map(k=>F[k]?.n).filter(Boolean).join(', '))}</small></span></button>${mine?`<button class="iconbtn" data-a="rmMine" data-v="${c.id}" aria-label="Remove ${esc(c.name)}">${IC.x}</button>`:`<span class="chev">${IC.chev}</span>`}</div>`}
+
+const VIEWS={
+ mix:()=>{const A=analyze();const notes=A?A.warns.length+A.toxic.length:0;return {title:'Bloomnote',brand:1,fixed:1,
+   right:`<button class="iconbtn" data-a="openPresets" aria-label="Presets">${IC.layers}Presets</button>`,menu:'mixMenu',body:`
+   <div class="ctx">
+    <button class="pick" data-a="pickMood" aria-label="Occasion: ${esc(S.mood)}"><span>For</span><b>${esc(S.mood)}</b>${IC.down}</button>
+    <button class="pick" data-a="pickStyle" aria-label="Style: ${esc(S.style)}"><span>Style</span><b>${esc(S.style)}</b>${IC.down}</button>
+    <button class="iconbtn txt" style="margin-left:auto" data-a="clearAnim" ${total()?'':'disabled'} aria-label="Clear bouquet">${IC.eraser}Clear</button>
+   </div>
+   <div class="canvas" ${total()?'data-a="zoomBouquet" role="button" tabindex="0" aria-label="Open bouquet full screen"':''}>${bouquetSVG(S.sel,{grow:S.lastAdd})}
+    ${A?`<button class="scorechip" data-a="why" aria-label="Score ${A.score}, ${A.tier}. See why"><b>${A.score}</b><span>${A.tier}</span><small>${notes?`<i>${notes} note${notes>1?'s':''}</i> · `:''}Why ›</small></button>
+      <p class="says">“${esc(MOODLINE[S.mood])}”</p>`
+     :`<p class="hint">Tap a flower below to start.<br>Hold one to read its meaning.</p>`}
+   </div>
+   <div class="trayhead"><b>Flowers <span class="stems" style="margin-left:4px">${total()}/${MAXS}</span></b><span>Tap to add · hold for meaning</span></div>
+   <div class="tray" id="tray"><button class="ft addft" data-a="newFlower" aria-label="Create your own flower">${IC.plus}<span class="n">Your flower</span></button>${trayOrder().map(f=>{const c=S.sel[f.id]||0;return `<button class="ft ${c?'on':''} ${f.avoid?'avoid':''}" data-a="add" data-v="${f.id}" data-lp="${f.id}" aria-label="${esc(f.n)}${f.custom?', your flower':''}, ${c} selected">${tileSVG(f)}<span class="n">${esc(f.n)}</span>${f.custom?'<i class="yours" aria-hidden="true"></i>':''}${c?`<span class="ct">${c}</span><span class="minus" data-a="sub" data-v="${f.id}" role="button" aria-label="Remove one ${esc(f.n)}">−</span>`:''}</button>`}).join('')}</div>`,
+   actions:`<button class="second" data-a="saveMine" ${total()?'':'disabled'}>${IC.star}Save</button><button class="second" data-a="toAlbum" ${total()?'':'disabled'}>${IC.album}Album</button><button class="primary" data-a="toCard" ${total()?'':'disabled'}>${IC.card}Write a card</button>`}},
+
+ presets:()=>{const list=deckList(),mine=S.coll==='mine';if(!(S.deckIdx<list.length))S.deckIdx=0;return {title:'Presets',body:`
+   <div style="display:flex;justify-content:center;margin-top:8px"><div class="seg" role="group" aria-label="Preset lists"><button data-a="coll" data-v="pre" aria-pressed="${!mine}">Curated</button><button data-a="coll" data-v="mine" aria-pressed="${mine}">Saved ${S.mine.length||''}</button></div></div>
+   ${list.length?`<div class="deck" id="deck">${list.map((c,i)=>`<div class="pcard" data-a="deckTap" data-v="${i}"><div class="pmini">${bouquetSVG(c.sel,{square:1})}</div><span class="tagline">${esc(c.for||'Saved')}</span><b>${esc(c.name)}</b><small>${esc(c.note||Object.keys(c.sel).map(k=>F[k]?.n).filter(Boolean).join(', '))}</small>${mine?`<button class="textbtn" data-a="rmMine" data-v="${c.id}">Remove</button>`:''}</div>`).join('')}</div>
+     <div class="deckdots" id="deckDots">${list.map((c,i)=>`<i class="${i===S.deckIdx?'on':''}"></i>`).join('')}</div>
+     <p class="muted" style="text-align:center;margin:8px 0 0">${mine?'Swipe to browse your saved bouquets.':'Swipe to browse. High Picks are bouquets for yourself.'}</p>`
+    :emptyState('vase','Nothing saved yet','Build a bouquet, then tap Save in the bottom bar. It will show up here.',`<button class="textbtn" data-a="coll" data-v="pre">Browse curated presets</button>`)}`,
+   actions:list.length?`<button class="primary" data-a="useDeck">${IC.check}Use this bouquet</button>`:'',
+   after:el=>bindDeck(el)}},
+
+ dict:()=>({title:'Meanings',body:`
+   <button class="featured" data-a="openFlower" data-v="amaryllis">
+    <svg class="art" viewBox="-32 -34 64 70" aria-hidden="true">${bigArt(F.amaryllis)}</svg>
+    <span><small>You asked about</small><b>Amaryllis</b><span class="muted">Pride · Determination · Radiance</span></span><span class="chev">${IC.chev}</span></button>
+   <div style="margin-top:16px"><input class="txt" id="dq" type="search" placeholder="Search a flower or a feeling" value="${esc(S.dq)}" aria-label="Search meanings"></div>
+   <div style="margin-top:10px">${chips(['All',...MOODS],S.dm,'dm','scrollx')}</div>
+   <div id="dlist">${dictList()}</div>`}),
+
+ flower:p=>{const f=F[p.id];const c=S.sel[f.id]||0;const ids=Object.keys(F),fi=ids.indexOf(f.id);return {title:f.n,menu:f.custom?'flowerMenu':'',after:el=>bindFlowerSwipe(el),body:`<div class="detail fsw" id="fswipe" style="padding-top:8px">
+   <div class="hero"><svg viewBox="-32 -34 64 70" aria-hidden="true">${bigArt(f)}</svg><div class="pager"><button class="pgb" data-a="fStep" data-v="-1" aria-label="Previous flower" ${fi===0?'disabled':''}><svg viewBox="0 0 10 12" aria-hidden="true"><path d="M9 1.2 L1.4 6 L9 10.8Z" fill="currentColor"/></svg></button><span>${fi+1} / ${ids.length}</span><button class="pgb" data-a="fStep" data-v="1" aria-label="Next flower" ${fi===ids.length-1?'disabled':''}><svg viewBox="0 0 10 12" aria-hidden="true"><path d="M1 1.2 L8.6 6 L1 10.8Z" fill="currentColor"/></svg></button></div></div>
+   <div><h2>${esc(f.n)}</h2>${f.alt?`<span class="en">Also called ${esc(f.alt)}</span>`:''}${f.custom?`<span class="en">Your own flower · <button class="textbtn" style="padding:4px 2px" data-a="editFlower" data-v="${f.id}">Edit</button></span>`:''}</div>
+   <div class="kw">${f.words.map(w=>`<span>${esc(w)}</span>`).join('')}</div>
+   <p>${esc(f.meaning)}</p>
+   ${f.say?`<p class="quote">“${esc(f.say)}”</p>`:''}
+   <p class="muted">${esc(f.tip)}</p>
+   ${f.warn?`<div class="note"><b>Heads up.</b> ${esc(f.warn)}</div>`:''}
+   ${f.toxic?`<div class="note pet"><b>Pets.</b> ${esc(f.toxic)}</div>`:''}
+   <p class="muted">Style: ${f.styles.join(', ')}${f.moods.length?` · Good for: ${f.moods.slice(0,4).join(', ')}`:''}</p>
+   ${f.id==='amaryllis'?`<div class="row"><button class="textbtn" data-a="loadColl" data-v="p1">Load “Proud to love you”</button><button class="textbtn" data-a="loadColl" data-v="p5">High Pick for me</button></div>`:''}
+  </div>`,
+  actions:f.avoid?`<button class="primary" disabled>Not recommended as a gift</button>`:`<button class="primary" data-a="addFromDetail" data-v="${f.id}">${IC.plus}Add to bouquet${c?` (${c} in)`:''}</button>`}},
+
+ confess:()=>{const q=S.q,n=QA.filter(x=>q[x.k]).length;return {title:'Confess',right:`<button class="iconbtn txt" data-a="resetQA" ${n?'':'disabled'}>${IC.restore}Start over</button>`,body:`
+   <p class="muted" style="margin:0">Answer three questions. We’ll pick the flowers and your first line.</p>
+   <div class="progress" aria-label="${n} of 3 answered">${QA.map(x=>`<i class="${q[x.k]?'on':''}"></i>`).join('')}</div>
+   <div class="qa">${QA.map((x,i)=>`<div class="q"><b><i>0${i+1}</i>${x.q}</b><div class="chips">${x.o.map(o=>`<button class="chip" data-a="qa" data-k="${x.k}" data-v="${esc(o)}" aria-pressed="${q[x.k]===o}">${esc(o)}</button>`).join('')}</div></div>`).join('')}</div>`,
+   actions:`<button class="primary" data-a="cfGo" ${n<3?'disabled':''}>${n<3?`${3-n} more to go`:`${IC.heart}Make my bouquet`}</button>`}},
+
+ cfResult:()=>{const q=S.q,b=confessBouquet(q),line=LINES[q.say][q.stage];S._cb=b;S._cl=line;return {title:'Your confession',body:`<div class="result" style="padding-top:12px">
+   <span class="stamp">${q.say==='I like you'?'LIKE YOU':q.say==='I’ll be here'?'STAY':'PROUD'}</span>
+   <p class="muted" style="margin:0">Your first line</p><p class="line">${esc(line)}</p>
+   <div class="art">${bouquetSVG(b)}</div>
+   <p class="muted" style="margin:0">${Object.entries(b).map(([k,n])=>`${F[k].n} ×${n} (${F[k].words[0].toLowerCase()})`).join(' · ')}</p></div>`,
+   actions:`<button class="second" data-a="cfUse">${IC.flower}Tweak</button><button class="second" data-a="cfAlbum">${IC.album}Album</button><button class="primary" data-a="cfCard">${IC.card}Make the card</button>`}},
+
+ card:()=>{const c=S.card,[c1]=INKS[c.ink]||INKS[0];const qs=QUOTES[S.mood]||[];return {title:'Card',right:`<button class="iconbtn txt" data-a="clearCard" ${c.to||c.body||c.from?'':'disabled'}>${IC.eraser}Clear</button>`,body:`
+   <div class="cardwrap"><div class="gcard" id="gcard" data-a="zoomCard" role="button" tabindex="0" aria-label="Open card full screen" style="--c1:${c1};cursor:zoom-in">
+    <div class="kind">${esc(kindLabel(c))}</div><div class="to">${esc(toLine(c))}</div><div class="art">${bouquetSVG(S.sel)}</div>
+    <div class="msg">${esc(c.body||'Write a line below')}</div><div class="from">${c.from?'— '+esc(c.from):''}</div></div></div>
+   <div id="copyFall"></div>
+   <p class="sec" style="margin-top:6px">This card is</p>
+   ${chips(KINDS,c.kind||'To someone','cKind','scrollx')}
+   ${c.kind==='Custom'?`<div class="field" style="margin-top:8px"><label for="cKindC">Name it</label><input class="txt" id="cKindC" maxlength="24" value="${esc(c.kindCustom||'')}" placeholder="e.g. Graduation, Moving day" autocomplete="off"></div>`:''}
+   <div class="field" style="margin-top:12px"><label for="cTo">To</label><input class="txt" id="cTo" value="${esc(c.to)}" maxlength="24"></div>
+   <div class="field" style="margin-top:10px"><label for="cBody">Message <span id="cCount">${(c.body||'').length}/90</span></label><textarea class="txt" id="cBody" maxlength="90">${esc(c.body)}</textarea></div>
+   <div class="field" style="margin-top:10px"><label for="cFrom">From</label><input class="txt" id="cFrom" value="${esc(c.from)}" maxlength="24" placeholder="Your name"></div>
+   <p class="sec">Ink</p>
+   <div class="inks">${INKS.map((p,i)=>`<button class="ink" style="--a:${p[0]};--b:${p[1]}" data-a="ink" data-v="${i}" aria-pressed="${i===c.ink}" aria-label="Ink ${i+1}"></button>`).join('')}</div>
+   <p class="sec">Lines for ${esc(S.mood)} <button class="textbtn" data-a="shuffle" style="padding:4px 0;text-transform:none;letter-spacing:0;font-size:13px">Another line</button></p>
+   ${chips(MOODS,S.mood,'mood','scrollx')}
+   <div class="qlist" style="margin-top:8px">${qs.map(q=>`<button class="qbtn" data-a="quote" data-v="${esc(q)}" aria-pressed="${q===c.body}">${esc(q)}</button>`).join('')}</div>`,
+   actions:`<button class="second" data-a="saveImg" data-v="card">${IC.download}Image</button><button class="second" data-a="copyCard">${IC.copy}Copy</button><button class="primary" data-a="cardToAlbum">${IC.album}Save to Album</button>`}},
+
+ album:()=>{const kinds=albumKinds();if(!['All',...kinds].includes(S.af))S.af='All';
+   return {title:'Album',menu:'albumMenu',body:`
+   ${S.album.length?`<div class="afilter"><label class="sbox">${IC.search}<input id="aq" type="search" placeholder="Search words, names or flowers" value="${esc(S.aq||'')}" aria-label="Search album" autocomplete="off"></label>${kinds.length>1||S.af!=='All'?`<button class="pick tagpick ${S.af!=='All'?'on':''}" data-a="pickTag" aria-label="Filter by tag: ${esc(S.af)}"><b>${S.af==='All'?'All tags':esc(S.af)}</b>${IC.down}</button>`:''}</div>`:''}
+   <div id="apages">${albumGrid()}</div>`,
+   actions:`<button class="primary" data-a="newPage">${IC.plus}New page</button>`}},
+
+ page:p=>{const e=S.album.find(x=>x.id===p.id);if(!e)return {title:'Page deleted',body:emptyState('vase','This page was deleted','Go back to see the rest of your album.')};const d=days(e.date);
+   return {title:e.title||'New page',menu:'pageMenu',body:`<div style="display:grid;gap:14px;padding-top:12px">
+   <div class="pressed" id="pressed">${bouquetSVG(e.sel,{square:1,cls:'bqbig'})}${stickersHTML(e)}<span class="datebadge">${esc(fmt(e.date))}</span></div>
+   <div class="tray7">${Object.keys(PETS).map(k=>`<button data-a="addSt" data-v="${k}" aria-label="Add ${PETNAME[k]} sticker">${petSVG(k)}</button>`).join('')}</div>
+   ${S.stSel!=null&&e.stickers[S.stSel]?`<div class="row"><button class="textbtn" data-a="rotSt">Rotate</button><button class="textbtn" data-a="delSt">Remove sticker</button></div>`:`<p class="muted" style="margin:0">Tap a pet to stick it on. Drag to move, tap a sticker to edit it.</p>`}
+   <div class="field"><label for="eWords">What they said</label><textarea class="txt" id="eWords" maxlength="200" style="font-family:var(--hand);font-size:22px;line-height:1.2" placeholder="Write it down word for word">${esc(e.words)}</textarea></div>
+   <div class="field"><label for="eTitle">Page title</label><input class="txt" id="eTitle" value="${esc(e.title)}" maxlength="30" placeholder="e.g. First flowers"></div>
+   <div class="field"><label>This page is</label>${chips(['None',...KINDS.filter(k=>k!=='Custom')],e.kind||'None','pgKind','scrollx')}<input class="txt" id="eKind" style="margin-top:6px" maxlength="24" value="${esc(KINDS.includes(e.kind)?'':(e.kind||''))}" placeholder="Or type your own, e.g. Graduation" autocomplete="off"></div>
+   <div class="field"><label for="eDate">Date</label><input class="txt" type="date" id="eDate" value="${esc(e.date)}"></div>
+   <div class="row" style="flex-wrap:nowrap"><div class="field" style="flex:1;min-width:0"><label for="eTo">To</label><input class="txt" id="eTo" value="${esc(e.to||'')}" maxlength="20"></div><div class="field" style="flex:1;min-width:0"><label for="eFrom">From</label><input class="txt" id="eFrom" value="${esc(e.from)}" maxlength="20"></div></div>
+   <p class="muted" style="margin:0">${Object.entries(e.sel).map(([k,n])=>F[k]?`${F[k].n} ×${n}`:'').filter(Boolean).join(' · ')}</p></div>`,
+   actions:`<button class="primary" data-a="savePage">${IC.check}Save page</button>`,
+   after:el=>bindDrag(el,e)}},
+
+ maker:()=>{const d=S.draft||(S.draft=newDraft());const pf=draftFlower(d);const ok=mkValid();return {title:d.id?'Edit your flower':'Make a flower',body:`<div style="display:grid;gap:14px;padding-top:12px">
+   <div class="mkprev" aria-live="polite"><svg viewBox="-32 -34 64 70" id="mkPrevSvg" aria-hidden="true">${mkPrevArt(pf)}</svg><div style="min-width:0"><b id="mkPrevName">${esc(d.n.trim()||'Your flower')}</b><small id="mkPrevWords">${esc(pf.words.join(' · '))}</small></div></div>
+   <div class="field"><label for="mkName">Name</label><input class="txt" id="mkName" maxlength="24" value="${esc(d.n)}" placeholder="e.g. Our first-date tulip" autocomplete="off"></div>
+   <div class="seg" role="group" aria-label="How to make it" style="justify-self:start"><button data-a="mkMode" data-v="draw" aria-pressed="${d.mode==='draw'}">Draw it</button><button data-a="mkMode" data-v="photo" aria-pressed="${d.mode==='photo'}">Use a photo</button></div>
+   ${d.mode==='draw'?`
+    <p class="sec" style="margin:4px 0 0">Shape</p>
+    <div class="shapes">${SHAPES.map(([k,l])=>`<button class="shp" data-a="mkShape" data-v="${k}" aria-pressed="${d.t===k}"><svg viewBox="-18 -18 36 36" aria-hidden="true">${head({t:k,c1:d.c1,c2:d.c2})}</svg><span>${l}</span></button>`).join('')}</div>
+    <p class="sec" style="margin:4px 0 0">Petal ink</p>
+    <div class="sw">${SWATCH.map(c=>`<button class="swb" style="background:${c}" data-a="mkC1" data-v="${c}" aria-pressed="${d.c1===c}" aria-label="Petal colour ${c}"></button>`).join('')}</div>
+    <p class="sec" style="margin:4px 0 0">Line ink</p>
+    <div class="sw">${SWATCH.filter(c=>c!==INK.white).map(c=>`<button class="swb" style="background:${c}" data-a="mkC2" data-v="${c}" aria-pressed="${d.c2===c}" aria-label="Line colour ${c}"></button>`).join('')}</div>`
+   :`<label class="upl" for="mkFile">${d.img?`<img src="${d.img}" alt="Your flower photo">`:`${IC.plus}<span>Choose a photo</span>`}</label>
+    <input type="file" id="mkFile" accept="image/*" hidden>
+    <p class="muted" style="margin:-6px 0 0;text-align:center">${d.img?'Tap the photo to choose another.':'Square crop, centred. A close-up of one bloom works best.'}</p>
+    <p class="sec" style="margin:4px 0 0">Riso ring</p>
+    <div class="sw">${SWATCH.filter(c=>c!==INK.white).map(c=>`<button class="swb" style="background:${c}" data-a="mkC2" data-v="${c}" aria-pressed="${d.c2===c}" aria-label="Ring colour ${c}"></button>`).join('')}</div>`}
+   <div class="field"><label for="mkWords">What it means <span>up to 3, separated by commas</span></label><input class="txt" id="mkWords" maxlength="60" value="${esc(d.words)}" placeholder="e.g. Home, Our first summer" autocomplete="off"></div>
+   <div class="field"><label for="mkMeaning">Its story <span>optional</span></label><textarea class="txt" id="mkMeaning" maxlength="200" placeholder="Why this flower matters to you">${esc(d.meaning)}</textarea></div>
+   <p class="sec" style="margin:4px 0 0">Good for</p>${chips(MOODS,null,'mkMood').replace(/data-v="([^"]+)" aria-pressed="false"/g,(m,v)=>`data-v="${v}" aria-pressed="${d.moods.includes(v.replace(/&#39;/g,"'"))}"`)}
+   <p class="sec" style="margin:4px 0 0">Style</p>${chips(STYLES,null,'mkStyle').replace(/data-v="([^"]+)" aria-pressed="false"/g,(m,v)=>`data-v="${v}" aria-pressed="${d.styles.includes(v)}"`)}
+   <label class="toggle"><input type="checkbox" id="mkFiller" ${d.filler?'checked':''}> It’s a filler or greenery</label>
+  </div>`,
+  actions:`<button class="primary" id="mkSaveBtn" data-a="mkSave" ${ok?'':'disabled'}>${IC.check}${d.id?'Save changes':'Add to my flowers'}</button>`}},
+
+ settings:()=>({title:'Settings',body:`
+   <p class="sec">Design principles</p>
+   ${PRINCIPLES.map((p,i)=>`<div class="principle"><i>0${i+1}</i><div><b>${p[0]}</b><p>${p[1]}</p></div></div>`).join('')}
+   <p class="sec">Data</p>
+   <p class="muted" style="margin:0 0 10px">Bouquets, cards and album pages are stored only in this browser on this device. Nothing is uploaded or synced.</p>
+   <p class="sec">App</p>
+   <div class="list">${window.__bip?`<button class="item" data-a="installApp">${IC.download}Install Bloomnote</button>`:`<div class="item" style="cursor:default;font-size:14px;color:var(--mute)">${matchMedia('(display-mode: standalone)').matches?'Installed. Bloomnote works offline.':'On iPhone: tap Share, then Add to Home Screen. On Android: use the browser menu, Install app.'}</div>`}</div>
+   <p class="sec">Your data</p>
+   <div class="list"><button class="item" data-a="restoreSamples">${IC.restore}Restore sample pages</button><button class="item danger" data-a="askWipe">${IC.trash}Delete all local data</button></div>`})
+};
+
+const QA=[{k:'stage',q:'Where are you two?',o:['Secret crush','Almost dating','Together']},{k:'type',q:'What are they like?',o:['Bold','Quiet','Romantic','A bit cool']},{k:'say',q:'What do you most want them to know?',o:['I like you','I’ll be here','I’m proud of you']}];
+const LINES={'I like you':{'Secret crush':'I kept it quiet for a long time. Today I want you to know: I like you.','Almost dating':'Someone has to say it first, so I will: I like you.','Together':'We’ve been together a while, and I still want to say it properly: I like you.'},
+ 'I’ll be here':{'Secret crush':'Whether or not you know it, I’ll be close by.','Almost dating':'If you want me to, I’d like to be here for all the days ahead.','Together':'For every ordinary day from now on, I’ll be here.'},
+ 'I’m proud of you':{'Secret crush':'The way you take life seriously is why I quietly like you.','Almost dating':'Since I met you, I’ve been proud of you more often than I can count.','Together':'I’m proud to love you.'}};
+function confessBouquet(q){
+  const s={...({'Secret crush':{daisy:3,gyp:2,pinkrose:2},'Almost dating':{tulip:5,pinkrose:2,euca:1},'Together':{redrose:5,euca:2}}[q.stage])};
+  const add=(k,n)=>s[k]=(s[k]||0)+n;
+  ({'Bold':()=>add('redrose',2),'Quiet':()=>add('lisianthus',2),'Romantic':()=>add('peony',2),'A bit cool':()=>add('amaryllis',2)})[q.type]();
+  if(q.say==='I’ll be here')add('forgetmenot',2);if(q.say==='I’m proud of you')add('amaryllis',q.type==='A bit cool'?1:2);
+  return s;
+}
+function stickersHTML(e){return (e.stickers||[]).map((s,i)=>`<div class="st" data-i="${i}" style="left:${s.x}%;top:${s.y}%;transform:rotate(${s.r||0}deg)">${petSVG(s.p)}</div>`).join('')}
+
+/* ---------- navigation ---------- */
+const LOGO=`<svg viewBox="0 0 120 120" aria-hidden="true"><g style="mix-blend-mode:multiply"><circle cx="60" cy="30" r="15" fill="#FF48B0"/><circle cx="76.6" cy="42.1" r="15" fill="#0078BF" fill-opacity=".85"/><circle cx="70.3" cy="61.6" r="15" fill="#FF48B0"/><circle cx="49.7" cy="61.6" r="15" fill="#0078BF" fill-opacity=".85"/><circle cx="43.4" cy="42.1" r="15" fill="#FF48B0"/></g><circle cx="60" cy="47" r="6" fill="#FFE800"/><rect x="18" y="72" width="84" height="38" rx="6" fill="#fff" stroke="#1D1A2B" stroke-width="5"/><path d="M20 74 L60 94 L100 74" fill="none" stroke="#1D1A2B" stroke-width="5" stroke-linejoin="round"/></svg>`;
+const TABS=[['confess','Confess',IC.heart],['dict','Meanings',IC.book],['mix','Bouquet',IC.flower],['card','Card',IC.card],['album','Album',IC.album]];
+const rootEl=()=>$('rs');
+function renderNav(){$('nav').innerHTML=TABS.map(([k,a,ic])=>`<button class="navb ${k==='mix'?'hero':''}" data-a="tab" data-v="${k}" ${S.tab===k?'aria-current="page"':''}><span class="ic">${ic}</span><span>${a}</span></button>`).join('')}
+function header(v,l2){
+  const menu=v.menu?`<button class="iconbtn" data-a="menu" data-v="${v.menu}" aria-label="More">${IC.more}</button>`:'';
+  return l2?`<header class="top l2h"><button class="iconbtn" data-a="back" aria-label="Back">${IC.back}</button><h1>${esc(v.title)}</h1><span class="r">${menu}</span></header>`
+    :`<header class="top">${v.brand?`<h1 class="brand">${LOGO}<span>bloom<em>note</em></span></h1>`:`<h1>${esc(v.title)}</h1>`}${v.right||''}${menu}</header>`;
+}
+function paint(el,entry,full){
+  const v=entry?VIEWS[entry.view](entry.p):VIEWS[S.tab]();
+  const cls=`scroll${v.fixed?' fixed':''}`;
+  if(full){el.innerHTML=header(v,!!entry)+`<div class="${cls}">${v.body}</div>`+(v.actions?`<div class="actions">${v.actions}</div>`:'')}
+  else{
+    const keep=el.querySelector('#tray')?.scrollLeft||0;
+    el.querySelector('.top').outerHTML=header(v,!!entry);
+    const sc=el.querySelector('.scroll');sc.className=cls;sc.innerHTML=v.body;
+    const tr=el.querySelector('#tray');if(tr)tr.scrollLeft=keep;
+    const act=el.querySelector('.actions');
+    if(v.actions){if(act)act.innerHTML=v.actions;else el.insertAdjacentHTML('beforeend',`<div class="actions">${v.actions}</div>`)}else if(act)act.remove();
+  }
+  v.after&&v.after(el);
+}
+function refresh(){const t=S.stack[S.stack.length-1];if(t)paint(t.el,t,false);else paint(rootEl(),null,false)}
+function go(tab){
+  S.stack.forEach(s=>s.el.remove());S.stack=[];S.tab=tab;S.stSel=null;
+  const r=rootEl();r.classList.remove('behind');r.removeAttribute('aria-hidden');$('nav').removeAttribute('aria-hidden');
+  paint(r,null,true);r.classList.remove('fade');void r.offsetWidth;r.classList.add('fade');
+  renderNav();
+}
+function push(view,p={}){
+  const el=document.createElement('div');el.className='screen l2 enter';const entry={view,p,el};
+  const prev=S.stack.length?S.stack[S.stack.length-1].el:rootEl();
+  S.stack.push(entry);paint(el,entry,true);$('shell').appendChild(el);
+  prev.classList.add('behind');prev.setAttribute('aria-hidden','true');$('nav').setAttribute('aria-hidden','true');
+  setTimeout(()=>el.classList.remove('enter'),280);
+  el.querySelector('.iconbtn')?.focus({preventScroll:true});
+}
+function pop(){
+  const t=S.stack.pop();if(!t)return;S.stSel=null;
+  t.el.classList.add('leave');setTimeout(()=>t.el.remove(),230);
+  const prev=S.stack.length?S.stack[S.stack.length-1]:null;const pel=prev?prev.el:rootEl();
+  pel.classList.remove('behind');pel.removeAttribute('aria-hidden');
+  if(!S.stack.length)$('nav').removeAttribute('aria-hidden');
+  paint(pel,prev,false);
+}
+
+/* ---------- sheets ---------- */
+function openSheet(html){$('sheetPanel').innerHTML=`<div class="grab"></div>${html}`;$('sheet').hidden=false;$('sheetPanel').querySelector('button')?.focus({preventScroll:true})}
+function closeSheet(){$('sheet').hidden=true}
+const MENUS={
+ mixMenu:()=>`<div class="list"><button class="item" data-a="saveImgMenu" data-v="bouquet" ${total()?'':'disabled'}>${IC.download}Save bouquet as image</button><button class="item" data-a="clear" ${total()?'':'disabled'}>${IC.eraser}Clear bouquet</button><button class="item" data-a="openSettings">${IC.cog}Settings</button></div><button class="cancel" data-a="closeSheet">Cancel</button>`,
+ albumMenu:()=>{return `<div class="list"><button class="item" data-a="restoreSamples">${IC.restore}Restore sample pages</button><button class="item" data-a="openSettings">${IC.cog}Settings</button></div><button class="cancel" data-a="closeSheet">Cancel</button>`},
+ flowerMenu:()=>{const t=S.stack[S.stack.length-1];const id=t&&t.p.id;return `<div class="list"><button class="item" data-a="editFlower" data-v="${id}">${IC.flower}Edit this flower</button><button class="item danger" data-a="askDelFlower" data-v="${id}">${IC.trash}Delete this flower</button></div><button class="cancel" data-a="closeSheet">Cancel</button>`},
+ pageMenu:()=>`<div class="list"><button class="item" data-a="saveImgMenu" data-v="page">${IC.download}Save page as image</button><button class="item danger" data-a="askDel">${IC.trash}Delete this page</button></div><button class="cancel" data-a="closeSheet">Cancel</button>`
+};
+function confirmSheet(title,desc,act,label){openSheet(`<h3>${esc(title)}</h3><p>${esc(desc)}</p><div class="btns"><button class="primary danger" data-a="${act}">${esc(label)}</button><button class="cancel" data-a="closeSheet">Cancel</button></div>`)}
+function whySheet(){
+  const A=analyze();if(!A)return;
+  openSheet(`<h3>${A.score} · ${A.tier}</h3><p>For ${esc(S.mood)}, in a ${esc(S.style.toLowerCase())} style.</p>
+   <div class="bars" style="margin-top:6px">
+    <div class="bar"><span>Meaning fit</span><i><em style="width:${Math.round(A.mh*100)}%"></em></i><tt>${Math.round(A.mh*100)}%</tt></div>
+    <div class="bar"><span>Style fit</span><i><em style="width:${Math.round(A.sh*100)}%"></em></i><tt>${Math.round(A.sh*100)}%</tt></div>
+    <div class="bar"><span>Cohesion</span><i><em style="width:${Math.round(A.coh*100)}%"></em></i><tt>${Math.round(A.coh*100)}%</tt></div></div>
+   <p style="color:var(--ink);margin-top:6px">Together they say: ${A.fl.map(f=>esc(f.words[0].toLowerCase())).join(' + ')}.</p>
+   <p class="quote">“${esc(MOODLINE[S.mood])}”</p>
+   ${A.warns.map(f=>`<div class="note"><b>${esc(f.n)}.</b> ${esc(f.warn)}</div>`).join('')}
+   ${A.off.length&&A.mh<1?`<p>${A.off.map(f=>esc(f.n)).join(', ')} ${A.off.length>1?'don’t':'doesn’t'} say much about “${esc(S.mood)}”. Keep as a filler or swap out.</p>`:''}
+   ${A.toxic.map(f=>`<div class="note pet"><b>Pets · ${esc(f.n)}.</b> ${esc(f.toxic)}</div>`).join('')}
+   ${A.sugg.length?`<p style="color:var(--ink);font-weight:600;margin-top:4px">Better fits</p><div class="chips">${A.sugg.map(f=>`<button class="chip" data-a="addSugg" data-v="${f.id}">+ ${esc(f.n)}</button>`).join('')}</div>`:''}
+   <button class="cancel" data-a="closeSheet" style="margin-top:6px">Done</button>`);
+}
+
+/* ---------- stickers drag ---------- */
+function bindDrag(root,e){
+  const box=root.querySelector('#pressed');if(!box)return;
+  box.querySelectorAll('.st').forEach(el=>{
+    const i=+el.dataset.i;if(S.stSel===i)el.classList.add('sel');
+    el.addEventListener('pointerdown',ev=>{
+      ev.preventDefault();el.setPointerCapture(ev.pointerId);
+      const r=box.getBoundingClientRect(),s=e.stickers[i];const sx=ev.clientX,sy=ev.clientY,ox=s.x,oy=s.y;let moved=false;
+      const mv=m=>{const dx=(m.clientX-sx)/r.width*100,dy=(m.clientY-sy)/r.height*100;if(Math.abs(dx)+Math.abs(dy)>1.5)moved=true;s.x=Math.max(-6,Math.min(84,ox+dx));s.y=Math.max(-6,Math.min(84,oy+dy));el.style.left=s.x+'%';el.style.top=s.y+'%'};
+      const up=()=>{el.removeEventListener('pointermove',mv);el.removeEventListener('pointerup',up);el.removeEventListener('pointercancel',up);save();if(!moved){haptic();S.stSel=S.stSel===i?null:i;refresh()}};
+      el.addEventListener('pointermove',mv);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+    });
+  });
+}
+
+/* ---------- actions ---------- */
+const curPage=()=>{const t=S.stack[S.stack.length-1];return t&&t.view==='page'?S.album.find(x=>x.id===t.p.id):null};
+function newEntry(sel,words){const e={id:'a'+Date.now(),title:'',date:TODAY,sel:{...sel},words:words||'',from:'',stickers:[{p:'cat',x:70,y:6,r:10}]};S.album.unshift(e);save();return e}
+function addFlower(v){if(total()>=MAXS){toast(`A bouquet holds up to ${MAXS} stems`,{err:1});return false}const s=snap();S.sel[v]=(S.sel[v]||0)+1;save();return s}
+
+/* long press on a flower tile opens its meaning */
+let lpT=null,lpFired=false,lpX=0,lpY=0;
+document.addEventListener('pointerdown',e=>{const c=e.target.closest('[data-lp]');if(!c||e.target.closest('.minus'))return;lpFired=false;lpX=e.clientX;lpY=e.clientY;clearTimeout(lpT);lpT=setTimeout(()=>{lpFired=true;haptic();push('flower',{id:c.dataset.lp})},450)});
+document.addEventListener('pointermove',e=>{if(lpT&&Math.abs(e.clientX-lpX)+Math.abs(e.clientY-lpY)>10)clearTimeout(lpT)},true);
+['pointerup','pointercancel'].forEach(t=>document.addEventListener(t,()=>clearTimeout(lpT),true));
+document.addEventListener('scroll',()=>clearTimeout(lpT),true);
+document.addEventListener('contextmenu',e=>{if(e.target.closest('[data-lp]'))e.preventDefault()});
+
+document.addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-a]');if(!b||b.disabled)return;
+  if(lpFired&&b.dataset.lp){lpFired=false;return}
+  const a=b.dataset.a,v=b.dataset.v;haptic();
+  if(a==='sub'){ev.stopPropagation();if(S.sel[v]>1)S.sel[v]--;else delete S.sel[v];save();refresh();return}
+  switch(a){
+   case 'tab':if(v!==S.tab||S.stack.length)go(v);break;
+   case 'back':pop();break;
+   case 'undo':if(undoFn){undoFn();undoFn=null;$('toast').hidden=true}break;
+   case 'menu':openSheet(MENUS[v]());break;
+   case 'closeSheet':closeSheet();break;
+   case 'openSettings':closeSheet();push('settings');break;
+   case 'openPresets':push('presets');break;
+   case 'pickMood':openSheet(`<h3>Who is it for?</h3>${chips(MOODS,S.mood,'setMood')}<button class="cancel" data-a="closeSheet" style="margin-top:6px">Cancel</button>`);break;
+   case 'pickStyle':openSheet(`<h3>What style do they like?</h3>${chips(STYLES,S.style,'setStyle')}<button class="cancel" data-a="closeSheet" style="margin-top:6px">Cancel</button>`);break;
+   case 'setMood':S.mood=v;save();closeSheet();refresh();break;
+   case 'setStyle':S.style=v;save();closeSheet();refresh();break;
+   case 'mood':S.mood=v;save();refresh();break;
+   case 'why':whySheet();break;
+   case 'add':{if(addFlower(v)){S.lastAdd=v;refresh();S.lastAdd=null;popTile(v)}break}
+   case 'addSugg':{if(addFlower(v)){S.lastAdd=v;refresh();S.lastAdd=null;whySheet()}break}
+   case 'installApp':if(window.__bip){window.__bip.prompt();window.__bip.userChoice.finally(()=>{window.__bip=null;refresh()})}break;
+   case 'clearAnim':doClearAnim();break;
+   case 'newFlower':if(S.custom.length>=24){toast('You can keep up to 24 of your own flowers',{err:1});break}S.draft=newDraft();push('maker');break;
+   case 'editFlower':closeSheet();if(F[v]){S.draft=newDraft(F[v]);push('maker')}break;
+   case 'mkMode':S.draft.mode=v;refresh();break;
+   case 'mkShape':S.draft.t=v;refresh();break;
+   case 'mkC1':S.draft.c1=v;refresh();break;
+   case 'mkC2':S.draft.c2=v;refresh();break;
+   case 'mkMood':case 'mkStyle':{const arr=a==='mkMood'?S.draft.moods:S.draft.styles;const i=arr.indexOf(v);if(i>=0)arr.splice(i,1);else arr.push(v);refresh();break}
+   case 'mkSave':{if(!mkValid())break;const f=draftFlower(S.draft),isNew=!S.draft.id;const prev=JSON.stringify(S.custom);
+     const i=S.custom.findIndex(c=>c.id===f.id);if(i>=0)S.custom[i]=f;else S.custom.unshift(f);F[f.id]=f;
+     if(isNew&&total()<MAXS)S.sel[f.id]=(S.sel[f.id]||0)+1;
+     if(!save()){S.custom=JSON.parse(prev);if(isNew){delete F[f.id];delete S.sel[f.id]}else F[f.id]=S.custom.find(c=>c.id===f.id)||F[f.id];toast('Not enough space on this device. Try a smaller photo or delete a flower.',{err:1});break}
+     S.draft=null;S.lastAdd=isNew?f.id:null;pop();S.lastAdd=null;toast(isNew?`${f.n} is in your tray and your bouquet`:`${f.n} updated`);break}
+   case 'askDelFlower':{const f=F[v];if(!f)break;confirmSheet(`Delete “${f.n}”?`,'It will be removed from your tray, your bouquet and any saved bouquets or album pages that use it. This can’t be undone.','doDelFlower','Delete flower');break}
+   case 'doDelFlower':{const t=S.stack[S.stack.length-1];const id=t&&t.p.id;if(!id||!F[id])break;S.custom=S.custom.filter(c=>c.id!==id);delete F[id];delete S.sel[id];
+     S.mine.forEach(m=>delete m.sel[id]);S.album.forEach(e=>delete e.sel[id]);save();closeSheet();pop();toast('Flower deleted');break}
+   case 'zoomBouquet':openLB([{html:bqSlide(),save:{kind:'bouquet'}}],0);break;
+   case 'zoomCard':openLB([{html:`<div style="padding:8px">${cardMarkup()}</div>`,save:{kind:'card'}}],0);break;
+   case 'saveImg':saveImage(v);break;
+   case 'saveImgMenu':closeSheet();saveImage(v,v==='page'?curPage()?.id:undefined);break;
+   case 'lbClose':closeLB();break;
+   case 'lbSave':{const s=LB.slides[LB.i].save;saveImage(s.kind,s.id);break}
+   case 'lbEdit':{const id=LB.slides[LB.i].save.id;closeLB();push('page',{id});break}
+   case 'doSave':doSave();break;
+   case 'fStep':stepFlower(+v);break;
+   case 'deckTap':{const i=+v;if(i!==S.deckIdx)scrollDeck(i,true);break}
+   case 'useDeck':{const c=deckList()[S.deckIdx];if(!c)break;const s=snap();S.sel={...c.sel};if(c.mood)S.mood=c.mood;if(c.style)S.style=c.style;save();go('mix');toast(`Loaded “${c.name}”`,{undo:()=>restore(s)});break}
+   case 'cKind':S.card.kind=v;save();refresh();break;
+   case 'pgKind':{const e=curPage();if(e){e.kind=v==='None'?'':v;save();refresh()}break}
+   case 'cardToAlbum':{const c=S.card;if(!(c.body||'').trim()&&!total()){toast('Write a message or pick some flowers first',{err:1});break}const s=snap();
+     const k=kindLabel(c);S.album.unshift({id:'a'+Date.now(),title:k+(c.to?' · '+c.to:''),date:TODAY,sel:{...S.sel},words:c.body,from:c.from,to:c.to,kind:k,ink:c.ink,card:1,stickers:[]});
+     S.aview='bloom';save();toast('Card saved to your Album',{undo:()=>restore(s)});break}
+   case 'clearCard':{const old={...S.card};S.card={to:'',body:'',from:'',ink:S.card.ink,kind:S.card.kind,kindCustom:S.card.kindCustom};save();refresh();toast('Card cleared',{undo:()=>{S.card=old;save();refresh()}});break}
+   case 'resetQA':{const old={...S.q};S.q={};refresh();toast('Answers cleared',{undo:()=>{S.q=old;refresh()}});break}
+   case 'addFromDetail':{const s=addFlower(v);if(s){refresh();toast(`Added ${F[v].n}`,{undo:()=>restore(s)})}break}
+   case 'clear':closeSheet();doClearAnim();break;
+   case 'coll':S.coll=v;S.deckIdx=0;refresh();break;
+   case 'loadColl':{const c=PRESETS.find(x=>x.id===v)||S.mine.find(x=>x.id===v);if(!c)break;const s=snap();S.sel={...c.sel};if(c.mood)S.mood=c.mood;if(c.style)S.style=c.style;save();go('mix');toast(`Loaded “${c.name}”`,{undo:()=>restore(s)});break}
+   case 'saveMine':{const fl=Object.keys(S.sel);const name=`${F[fl[0]].n}${fl.length>1?' & friends':''} · ${S.mood}`;const s=snap();S.mine.unshift({id:'m'+Date.now(),name,for:S.mood+' · '+S.style,sel:{...S.sel},mood:S.mood,style:S.style});S.mine=S.mine.slice(0,24);S.coll='mine';save();refresh();toast('Saved to Presets',{undo:()=>restore(s)});break}
+   case 'rmMine':{const s=snap();S.mine=S.mine.filter(x=>x.id!==v);save();refresh();toast('Removed from saved',{undo:()=>restore(s)});break}
+   case 'toAlbum':{const e=newEntry(S.sel);S.aview='bloom';go('album');push('page',{id:e.id});break}
+   case 'toCard':go('card');break;
+   case 'openFlower':push('flower',{id:v});break;
+   case 'dm':S.dm=v;refresh();break;
+   case 'clearSearch':S.dq='';S.dm='All';refresh();break;
+   case 'ink':S.card.ink=+v;save();refresh();break;
+   case 'quote':S.card.body=v;save();refresh();break;
+   case 'shuffle':{const qs=QUOTES[S.mood];const i=(qs.indexOf(S.card.body)+1)%qs.length;S.card.body=qs[i];save();refresh();break}
+   case 'copyCard':{const c=S.card,t=`${c.to?'To '+c.to+'\n':''}${c.body}${c.from?'\n— '+c.from:''}`;
+     const fail=()=>{$('copyFall').innerHTML=`<textarea class="copyfall" readonly aria-label="Card text">${esc(t)}</textarea>`;const ta=$('copyFall').firstChild;ta.focus();ta.select();toast('Couldn’t copy automatically. Text is selected, long-press to copy.',{err:1})};
+     try{navigator.clipboard.writeText(t).then(()=>{$('copyFall').innerHTML='';toast('Copied. Paste it into the florist’s note.')}).catch(fail)}catch(e){fail()}break}
+   case 'qa':S.q[b.dataset.k]=v;refresh();break;
+   case 'cfGo':push('cfResult');break;
+   case 'cfCard':S.sel={...S._cb};S.mood='Confession';S.card.body=S._cl;save();go('card');toast('Confession card ready');break;
+   case 'cfUse':S.sel={...S._cb};S.mood='Confession';save();go('mix');break;
+   case 'cfAlbum':{const e=newEntry(S._cb,S._cl);e.title='The day I said it';save();S.aview='bloom';go('album');push('page',{id:e.id});break}
+   case 'aview':S.aview=v;S.af='All';refresh();break;
+   case 'af':S.af=v;refresh();break;
+   case 'pickTag':openSheet(`<h3>Filter by tag</h3>${chips(['All',...albumKinds()],S.af||'All','setTag')}<button class="cancel" data-a="closeSheet" style="margin-top:6px">Cancel</button>`);break;
+   case 'setTag':S.af=v;closeSheet();refresh();break;
+   case 'aClear':S.af='All';S.aq='';refresh();break;
+   case 'pressFaded':{closeSheet();const s=snap();let n=0;S.album.forEach(e=>{if(!e.withered&&fresh(e).left<=0){e.withered=true;e.dried=TODAY;n++}});if(!n)break;save();refresh();toast(`Pressed ${n} page${n>1?'s':''} into Withered`,{undo:()=>restore(s)});break}
+   case 'newPage':{const e=newEntry(total()?S.sel:{pinkrose:3,gyp:2});push('page',{id:e.id});break}
+   case 'openPage':{const l=albumList();openLB(l.map(e=>({html:pageSlide(e),save:{kind:'page',id:e.id}})),Math.max(0,l.findIndex(e=>e.id===v)),{edit:1});break}
+   case 'savePage':{const e=curPage();if(e&&e.sample)delete e.sample;save();pop();toast('Page saved');break}
+   case 'addSt':{const e=curPage();e.stickers=e.stickers||[];if(e.stickers.length>=8){toast('Up to 8 stickers per page',{err:1});break}e.stickers.push({p:v,x:10+Math.random()*60,y:10+Math.random()*60,r:Math.round((Math.random()-.5)*30)});S.stSel=e.stickers.length-1;save();refresh();break}
+   case 'delSt':{const e=curPage();const s=snap();e.stickers.splice(S.stSel,1);S.stSel=null;save();refresh();toast('Sticker removed',{undo:()=>restore(s)});break}
+   case 'rotSt':{const e=curPage();const st=e.stickers[S.stSel];st.r=((st.r||0)+20)%360;save();refresh();break}
+   case 'dry':{const e=curPage();if(!e)break;const s=snap();const t=S.stack[S.stack.length-1];const box=t&&t.el.querySelector('#pressed');
+     const fin=()=>{e.withered=true;e.dried=TODAY;if(e.sample)delete e.sample;save();refresh();toast('Pressed into Withered',{undo:()=>restore(s)})};
+     if(box&&!RM){box.classList.add('pressing');setTimeout(fin,720)}else fin();break}
+   case 'revive':{const e=curPage();const s=snap();e.withered=false;save();refresh();toast('Moved back to In bloom',{undo:()=>restore(s)});break}
+   case 'askDel':{const e=curPage();confirmSheet(`Delete “${e.title||'this page'}”?`,'The bouquet, their words and the stickers on this page will be deleted. This can’t be undone.','doDel','Delete page');break}
+   case 'doDel':{const t=S.stack[S.stack.length-1];S.album=S.album.filter(x=>x.id!==t.p.id);save();closeSheet();pop();toast('Page deleted');break}
+   case 'restoreSamples':{closeSheet();const s=snap();const have=new Set(S.album.map(x=>x.id));seedAlbum().forEach(x=>{if(!have.has(x.id))S.album.push(x)});save();refresh();toast('Sample pages restored',{undo:()=>restore(s)});break}
+   case 'askWipe':confirmSheet('Delete all local data?','Saved bouquets, your card and every album page will be deleted. This can’t be undone.','doWipe','Delete everything');break;
+   case 'doWipe':{S.sel={};S.mine=[];S.album=[];S.card={to:'',body:'',from:'',ink:0};save();closeSheet();go('mix');toast('All local data deleted');break}
+  }
+});
+$('sheet').addEventListener('click',ev=>{if(ev.target.id==='sheet')closeSheet()});
+document.addEventListener('keydown',ev=>{
+  if(!$('sheet').hidden){if(ev.key==='Escape')closeSheet();return}
+  if(!$('lb').hidden){if(ev.key==='Escape')closeLB();if(ev.key==='ArrowRight')lbGo(LB.i+1);if(ev.key==='ArrowLeft')lbGo(LB.i-1);return}
+  const t=S.stack[S.stack.length-1];
+  if(t&&t.view==='flower'&&!/INPUT|TEXTAREA/.test(document.activeElement?.tagName||'')){if(ev.key==='ArrowRight')stepFlower(1);if(ev.key==='ArrowLeft')stepFlower(-1)}
+  if(ev.key==='Escape'&&S.stack.length)pop();
+  if((ev.key==='Enter'||ev.key===' ')&&ev.target.matches?.('[role="button"][data-a]')){ev.preventDefault();ev.target.click()}
+});
+document.addEventListener('input',ev=>{
+  const t=ev.target,id=t.id;
+  if(id==='aq'){S.aq=t.value;const g=$('apages');if(g)g.innerHTML=albumGrid();return}
+  if(id==='dq'){S.dq=t.value;const l=$('dlist');if(l)l.innerHTML=dictList();return}
+  if(id==='cTo'||id==='cBody'||id==='cFrom'||id==='cKindC'){S.card[{cTo:'to',cBody:'body',cFrom:'from',cKindC:'kindCustom'}[id]]=t.value;save();const g=$('gcard');if(!g)return;
+    g.querySelector('.kind').textContent=kindLabel(S.card);g.querySelector('.to').textContent=toLine(S.card);g.querySelector('.msg').textContent=S.card.body||'Write a line below';g.querySelector('.from').textContent=S.card.from?'— '+S.card.from:'';if(id==='cBody')$('cCount').textContent=t.value.length+'/90';return}
+  if(id==='mkName'||id==='mkWords'||id==='mkMeaning'||id==='mkFiller'){const d=S.draft;if(!d)return;
+    if(id==='mkName')d.n=t.value;if(id==='mkWords')d.words=t.value;if(id==='mkMeaning')d.meaning=t.value;if(id==='mkFiller')d.filler=t.checked;
+    const pf=draftFlower(d);const n=$('mkPrevName'),w=$('mkPrevWords'),b=$('mkSaveBtn');if(n)n.textContent=d.n.trim()||'Your flower';if(w)w.textContent=pf.words.join(' · ');if(b)b.disabled=!mkValid();return}
+  const e=curPage();if(!e)return;
+  if(id==='eTitle'){e.title=t.value;const top=S.stack[S.stack.length-1];const h=top&&top.el.querySelector('.top h1');if(h&&!e.withered)h.textContent=t.value||'New page'}
+  if(id==='eWords')e.words=t.value;if(id==='eFrom')e.from=t.value;if(id==='eTo')e.to=t.value;if(id==='eKind'){e.kind=t.value.trim();t.parentElement.querySelectorAll('.chip').forEach(ch=>ch.setAttribute('aria-pressed',String(ch.dataset.v===(e.kind||'None'))))}if(id==='eDate'&&t.value)e.date=t.value;
+  save();
+});
+
+/* ---------- album: freshness, filters ---------- */
+const LIFE={tulip:6,peony:6,hydrangea:5,sweetpea:5,lilac:4,gardenia:4,lilyvalley:5,anemone:6,cosmos:6,ranunculus:8,redrose:7,pinkrose:7,whiterose:7,yellowrose:7,daisy:7,sunflower:8,lily:10,lisianthus:12,carnation:14,alstroemeria:14,pingpong:14,orchid:21,protea:21,statice:30,wheat:90,cotton:90,craspedia:30,euca:14,fern:10,olive:14,gyp:10,waxflower:14,lavender:14,forgetmenot:7,freesia:7,iris:5,dahlia:5,zinnia:7,gerbera:7,chamomile:6,aster:10,hyacinth:6,delphinium:7,stock:7,marigold:10,calla:10,amaryllis:10,camellia:5,allium:14,foxtail:14,whitemum:14};
+function lifeOf(sel){const ks=Object.keys(sel||{}).filter(k=>F[k]);if(!ks.length)return 7;const main=ks.filter(k=>!F[k].filler),use=main.length?main:ks;return Math.max(3,Math.round(use.reduce((a,k)=>a+(LIFE[k]||7),0)/use.length))}
+function fresh(e){const life=lifeOf(e.sel),age=days(e.date),left=life-age;return {life,age,left,pct:Math.max(0,Math.min(1,age/life))}}
+function freshLine(e){
+  if(e.withered)return `<p class="fresh">Pressed after ${days(e.date,e.dried)} days. It stays in Withered for good; Revive moves it back.</p>`;
+  const f=fresh(e);
+  return `<div class="fresh"><span class="life big ${f.left<=2?'low':''}"><i style="width:${Math.round((1-f.pct)*100)}%"></i></span><span>${f.left>0?`<b>Day ${f.age} of about ${f.life}.</b> Fresh for about ${f.left} more day${f.left>1?'s':''}.`:`<b>Day ${f.age}.</b> These flowers have probably faded by now. Press them into Withered to keep them.`}</span></div>`;
+}
+function filterAlbum(list){const q=(S.aq||'').trim().toLowerCase();
+  return list.filter(e=>!S.af||S.af==='All'?true:S.af==='Untagged'?!e.kind:e.kind===S.af)
+    .filter(e=>!q||[e.title,e.words,e.from,e.to,e.kind,flowerList(e.sel)].join(' ').toLowerCase().includes(q))
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||''));}
+function pgCard(e){return `<button class="pg" data-a="openPage" data-v="${e.id}">
+    <div class="cv">${bouquetSVG(e.sel,{square:1,cls:'bq'})}${stickersHTML(e)}</div>
+    ${e.kind?`<span class="ktag">${esc(e.kind)}</span>`:''}<div class="w">${esc(e.words||'What did they say?')}</div>
+    <div class="meta"><span>${esc(e.title||'Untitled')}</span><span>${e.sample?'Sample':esc(fmt(e.date))}</span></div></button>`}
+function albumGrid(){
+  if(!S.album.length)return emptyState('vase','Your album is empty','The day you get flowers, tap New page and write down what they said. Cards you save land here too.');
+  const list=filterAlbum(S.album);
+  return list.length?`<div class="pages">${list.map(pgCard).join('')}</div>`:emptyState('search','No pages match','Try another word, or clear the filter.',`<button class="textbtn" data-a="aClear">Clear filter</button>`);}
+
+/* ---------- your own flowers ---------- */
+const SHAPES=[['rose','Rose'],['peony','Peony'],['star','Lily'],['daisy','Daisy'],['cosmos','Cosmos'],['anem','Anemone'],['tulip','Tulip'],['bell','Bells'],['orchid','Orchid'],['carn','Ruffle'],['sun','Sunburst'],['ball','Pompom'],['cluster','Cluster'],['spike','Spike'],['leaf','Leaf']];
+const SWATCH=[INK.pink,INK.red,'#FF9466',INK.orange,INK.yellow,'#C8D93A',INK.green,INK.sky,INK.blue,INK.lilac,INK.purple,INK.white];
+const trayOrder=()=>[...S.custom.map(c=>F[c.id]).filter(Boolean),...Object.values(F).filter(f=>!f.custom)];
+function newDraft(f){
+  if(f)return {id:f.id,n:f.n,mode:f.img?'photo':'draw',t:f.img?'rose':f.t,c1:f.c1||INK.pink,c2:f.c2||INK.blue,img:f.img||'',words:(f.words||[]).join(', '),meaning:f.meaningUser||'',moods:[...(f.moods||[])],styles:[...(f.styles||[])],filler:!!f.filler};
+  return {n:'',mode:'draw',t:'rose',c1:INK.pink,c2:INK.blue,img:'',words:'',meaning:'',moods:[S.mood],styles:[S.style],filler:false};
+}
+function draftFlower(d){
+  const words=String(d.words||'').split(/[,，、]/).map(s=>s.trim()).filter(Boolean).slice(0,3);const photo=d.mode==='photo'&&d.img;
+  return {id:d.id||'c_'+Date.now().toString(36),n:d.n.trim()||'My flower',t:photo?'ball':d.t,c1:d.c1,c2:d.c2,img:photo?d.img:'',
+    words:words.length?words:['My own meaning'],
+    meaning:d.meaning.trim()||(words.length?`A flower you made. To you it means ${words.join(', ').toLowerCase()}.`:'A flower you made. It means whatever you want it to mean.'),
+    meaningUser:d.meaning.trim(),tip:'Your own flower. It is saved on this device only.',styles:d.styles.length?[...d.styles]:[S.style],moods:[...d.moods],filler:d.filler?1:0,custom:1};
+}
+const mkValid=()=>{const d=S.draft;return !!(d&&d.n.trim()&&(d.mode==='draw'||d.img))};
+const bigArt=f=>`<path d="M0 12 Q2 23 0 35" stroke="${INK.green}" stroke-width="2.2" fill="none"/><g transform="scale(1.35)">${head(f)}</g>`;
+const mkPrevArt=bigArt;
+function readPhoto(file){return new Promise((res,rej)=>{
+  if(!file||(file.type&&!/^image\//.test(file.type)))return rej(new Error('type'));
+  const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{const s=Math.min(img.naturalWidth,img.naturalHeight),c=document.createElement('canvas');c.width=c.height=192;const x=c.getContext('2d');
+    x.beginPath();x.arc(96,96,96,0,Math.PI*2);x.clip();x.drawImage(img,(img.naturalWidth-s)/2,(img.naturalHeight-s)/2,s,s,0,0,192,192);URL.revokeObjectURL(url);
+    let d=c.toDataURL('image/webp',.82);if(!d.startsWith('data:image/webp'))d=c.toDataURL('image/png');res(d)};
+  img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('decode'))};img.src=url})}
+document.addEventListener('change',ev=>{
+  if(ev.target.id!=='mkFile'||!S.draft)return;const file=ev.target.files&&ev.target.files[0];if(!file)return;
+  readPhoto(file).then(d=>{S.draft.img=d;refresh();toast('Photo added')}).catch(()=>toast('We couldn’t read that file. Try a JPG or PNG photo.',{err:1}));
+});
+
+/* ---------- motion helpers ---------- */
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function popTile(v){const t=rootEl().querySelector(`.ft[data-v="${v}"]`);if(t){t.classList.remove('pop');void t.offsetWidth;t.classList.add('pop')}}
+function doClearAnim(){
+  if(!total())return;const s=snap();
+  const fin=()=>{S.sel={};save();refresh();toast('Bouquet cleared',{undo:()=>restore(s)})};
+  const cv=S.stack.length?null:rootEl().querySelector('.canvas');
+  if(cv&&!RM){cv.classList.add('blow');setTimeout(fin,560)}else fin();
+}
+
+/* ---------- presets deck ---------- */
+const deckList=()=>S.coll==='mine'?S.mine:PRESETS;
+function scrollDeck(i,smooth){const t=S.stack[S.stack.length-1];const d=t&&t.el.querySelector('#deck');if(!d)return;const k=d.children[i];if(!k)return;d.scrollTo({left:k.offsetLeft-(d.clientWidth-k.offsetWidth)/2,behavior:smooth&&!RM?'smooth':'auto'})}
+function bindDeck(el){
+  const d=el.querySelector('#deck');if(!d)return;const cards=[...d.children];
+  const upd=()=>{const c=d.scrollLeft+d.clientWidth/2;let best=0,bd=1e9;
+    cards.forEach((k,i)=>{const dist=(k.offsetLeft+k.offsetWidth/2-c)/k.offsetWidth,ad=Math.abs(dist);if(ad<bd){bd=ad;best=i}
+      if(!RM){k.style.transform=`scale(${(1-Math.min(ad,1)*.1).toFixed(3)}) rotate(${(-dist*4).toFixed(2)}deg)`;k.style.opacity=(1-Math.min(ad,1)*.45).toFixed(2)}});
+    if(best!==S.deckIdx){S.deckIdx=best;el.querySelectorAll('#deckDots i').forEach((x,i)=>x.classList.toggle('on',i===best))}};
+  requestAnimationFrame(()=>{const k=cards[S.deckIdx]||cards[0];if(k)d.scrollLeft=k.offsetLeft-(d.clientWidth-k.offsetWidth)/2;upd()});
+  let raf=0;d.addEventListener('scroll',()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(upd)},{passive:true});
+}
+
+/* ---------- flower detail swipe ---------- */
+function stepFlower(dir){
+  const t=S.stack[S.stack.length-1];if(!t||t.view!=='flower')return;
+  const ids=Object.keys(F),i=ids.indexOf(t.p.id)+dir,box=t.el.querySelector('#fswipe');
+  if(i<0||i>=ids.length){if(!RM&&box.animate)box.animate([{transform:'none'},{transform:`translateX(${-dir*16}px)`},{transform:'none'}],{duration:260,easing:'ease-out'});return}
+  haptic();
+  const swap=()=>{t.p.id=ids[i];paint(t.el,t,false);t.el.querySelector('.scroll').scrollTop=0;const nb=t.el.querySelector('#fswipe');if(!RM&&nb.animate)nb.animate([{transform:`translateX(${dir*56}px)`,opacity:0},{transform:'none',opacity:1}],{duration:240,easing:'cubic-bezier(.2,.8,.2,1)'})};
+  if(RM||!box.animate){swap();return}
+  box.animate([{transform:box.style.transform||'none',opacity:1},{transform:`translateX(${-dir*56}px)`,opacity:0}],{duration:140,easing:'ease-in',fill:'forwards'}).onfinish=swap;
+}
+function bindFlowerSwipe(el){
+  const box=el.querySelector('#fswipe');if(!box)return;let sx=0,sy=0,ax=null,on=false;
+  box.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse'&&e.button)return;on=true;ax=null;sx=e.clientX;sy=e.clientY});
+  box.addEventListener('pointermove',e=>{if(!on)return;const dx=e.clientX-sx,dy=e.clientY-sy;if(!ax&&Math.abs(dx)+Math.abs(dy)>10)ax=Math.abs(dx)>Math.abs(dy)*1.3?'x':'y';if(ax==='x'&&!RM){box.style.transform=`translateX(${dx*.45}px)`;box.style.opacity=1-Math.min(Math.abs(dx)/600,.4)}});
+  const end=e=>{if(!on)return;on=false;const dx=e.clientX-sx;box.style.transform='';box.style.opacity='';if(ax==='x'&&Math.abs(dx)>60)stepFlower(dx<0?1:-1)};
+  box.addEventListener('pointerup',end);box.addEventListener('pointercancel',()=>{on=false;box.style.transform='';box.style.opacity=''});
+}
+
+/* ---------- lightbox: tap to enlarge, swipe left/right, swipe down to close, double-tap to zoom ---------- */
+const LB={i:0,n:0,slides:[],zoom:false,opts:{}};
+const albumList=()=>filterAlbum(S.album);
+const albumKinds=()=>[...new Set(S.album.map(e=>e.kind||'Untagged'))];
+function pageSlide(e){return `<div class="lbcard"><div class="cv">${bouquetSVG(e.sel,{square:1,cls:'bq'})}${stickersHTML(e)}</div>${e.kind?`<span class="ktag" style="margin:4px 4px 0">${esc(e.kind)}</span>`:''}<p class="w">${esc(e.words||'What did they say?')}</p><div class="meta"><span>${esc(e.title||'Untitled')}</span><span>${esc(fmt(e.date))}${e.to?' · to '+esc(e.to):''}${e.from?' · from '+esc(e.from):''}</span></div></div>`}
+function bqSlide(){return `<div class="lbcard"><div class="cv tall">${bouquetSVG(S.sel)}</div><p class="w">“${esc(MOODLINE[S.mood])}”</p><div class="meta"><span>For ${esc(S.mood)}</span><span>${esc(flowerList(S.sel))}</span></div></div>`}
+function cardMarkup(){const c=S.card,[c1]=INKS[c.ink]||INKS[0];return `<div class="gcard" style="--c1:${c1}"><div class="kind">${esc(kindLabel(c))}</div><div class="to">${esc(toLine(c))}</div><div class="art">${bouquetSVG(S.sel)}</div><div class="msg">${esc(c.body||'Write a line below')}</div><div class="from">${c.from?'— '+esc(c.from):''}</div></div>`}
+function openLB(slides,i,opts={}){
+  Object.assign(LB,{slides,i,n:slides.length,opts,zoom:false});const el=$('lb');
+  el.innerHTML=`<div class="lbtop"><button class="iconbtn" data-a="lbClose" aria-label="Close">${IC.x}</button><span class="lbcount" id="lbCount"></span><span style="width:44px"></span></div>
+   <div class="lbview" id="lbView"><div class="lbtrack" id="lbTrack">${slides.map(s=>`<div class="lbslide"><div class="lbinner">${s.html}</div></div>`).join('')}</div></div>
+   <div class="lbdots" id="lbDots">${LB.n>1?slides.map(()=>'<i></i>').join(''):''}</div>
+   <p class="lbhint">${LB.n>1?'Swipe to flip · ':''}Double-tap to zoom · swipe down to close</p>
+   <div class="lbbar">${opts.edit?`<button class="second" data-a="lbEdit">${IC.album}Edit</button>`:''}<button class="primary" data-a="lbSave">${IC.download}Save image</button></div>`;
+  el.classList.remove('closing');el.style.background='';el.hidden=false;lbGo(i,false);bindLB();el.querySelector('[data-a="lbClose"]').focus({preventScroll:true});
+}
+function lbGo(i,anim=true){
+  if(!LB.n)return;LB.i=Math.max(0,Math.min(LB.n-1,i));const t=$('lbTrack');
+  t.style.transition=anim&&!RM?'transform .34s cubic-bezier(.2,.8,.2,1)':'none';t.style.transform=`translateX(${-LB.i*100}%)`;
+  $('lbCount').textContent=LB.n>1?`${LB.i+1} / ${LB.n}`:'';
+  $('lbDots').querySelectorAll('i').forEach((d,k)=>d.classList.toggle('on',k===LB.i));lbZoom(false);
+}
+function lbZoom(on,px,py){LB.zoom=on;document.querySelectorAll('#lbTrack .lbinner').forEach((n,k)=>{if(on&&k===LB.i){const r=n.getBoundingClientRect();n.style.transformOrigin=`${px-r.left}px ${py-r.top}px`;n.style.transform='scale(2)'}else n.style.transform=''})}
+function closeLB(){const el=$('lb');if(el.hidden)return;el.classList.add('closing');setTimeout(()=>{el.hidden=true;el.innerHTML=''},RM?0:190)}
+function bindLB(){
+  const v=$('lbView'),t=$('lbTrack'),lb=$('lb');let sx,sy,st,ax=null,dx=0,dy=0,down=false,lastTap=0;
+  v.addEventListener('pointerdown',e=>{down=true;sx=e.clientX;sy=e.clientY;st=performance.now();ax=null;dx=dy=0;try{v.setPointerCapture(e.pointerId)}catch(_){}});
+  v.addEventListener('pointermove',e=>{if(!down||LB.zoom)return;dx=e.clientX-sx;dy=e.clientY-sy;
+    if(!ax&&Math.abs(dx)+Math.abs(dy)>8)ax=Math.abs(dx)>Math.abs(dy)?'x':'y';
+    if(ax==='x'){let d=dx;if((LB.i===0&&d>0)||(LB.i===LB.n-1&&d<0))d*=.28;t.style.transition='none';t.style.transform=`translateX(calc(${-LB.i*100}% + ${d}px))`;
+      const cur=t.children[LB.i]?.firstElementChild;if(cur&&!RM)cur.style.transform=`rotate(${(d/40).toFixed(2)}deg)`}
+    else if(ax==='y'&&dy>0){v.style.transform=`translateY(${dy}px) scale(${(1-Math.min(dy/1400,.1)).toFixed(3)})`;lb.style.background=`rgba(247,246,242,${(.97-Math.min(dy/500,.5)).toFixed(2)})`}});
+  const end=e=>{if(!down)return;down=false;const dt=Math.max(1,performance.now()-st);
+    const cur=t.children[LB.i]?.firstElementChild;if(cur&&!LB.zoom)cur.style.transform='';
+    if(!ax){const now=performance.now();if(now-lastTap<300){lbZoom(!LB.zoom,e.clientX,e.clientY);lastTap=0}else lastTap=now;return}
+    if(ax==='x'){const w=v.clientWidth,fast=Math.abs(dx)/dt>.45;
+      if((dx<-w*.18||(fast&&dx<-30))&&LB.i<LB.n-1){haptic();lbGo(LB.i+1)}else if((dx>w*.18||(fast&&dx>30))&&LB.i>0){haptic();lbGo(LB.i-1)}else lbGo(LB.i)}
+    if(ax==='y'){if(dy>110)closeLB();else{v.style.transition='transform .25s cubic-bezier(.2,.8,.2,1)';v.style.transform='';lb.style.background='';setTimeout(()=>v.style.transition='',260)}}};
+  v.addEventListener('pointerup',end);v.addEventListener('pointercancel',end);
+}
+
+/* ---------- save image to phone ---------- */
+let DLP=null;const getDL=()=>DLP||(DLP=(window.claude&&window.claude.use)?Promise.resolve(window.claude.use('downloads')).catch(()=>null):Promise.resolve(localDL()));
+function localDL(){return {save:async({filename,data})=>{
+  const blob=data instanceof Blob?data:new Blob([data],{type:'image/png'});
+  try{const file=new File([blob],filename,{type:blob.type||'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'Bloomnote'});return {status:'saved'}}}
+  catch(e){if(e&&e.name==='AbortError')throw {code:'declined',message:'cancelled'}}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);return {status:'saved'}}}}
+const flowerList=sel=>Object.entries(sel).filter(([k])=>F[k]).map(([k,n])=>`${F[k].n} ×${n}`).join(' · ');
+const place=(svg,x,y,w,h)=>svg.replace('<svg ',`<svg x="${x}" y="${y}" width="${w}" height="${h}" `);
+async function svgImage(inner,W,H){
+  const s=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${document.querySelector('svg.defs defs').outerHTML}${inner}</svg>`;
+  const url=URL.createObjectURL(new Blob([s],{type:'image/svg+xml'}));
+  const img=new Image();img.src=url;await img.decode();setTimeout(()=>URL.revokeObjectURL(url),2000);return img;
+}
+function wrap(x,text,cx,y,maxW,lh,align='center'){
+  x.textAlign=align;const words=String(text).split(/\s+/);let line='';const lines=[];
+  words.forEach(w=>{const t=line?line+' '+w:w;if(x.measureText(t).width>maxW&&line){lines.push(line);line=w}else line=t});if(line)lines.push(line);
+  lines.forEach((l,i)=>x.fillText(l,cx,y+i*lh));return y+lines.length*lh;
+}
+function rrect(x,X,Y,w,h,r){x.beginPath();if(x.roundRect)x.roundRect(X,Y,w,h,r);else x.rect(X,Y,w,h)}
+async function renderPNG(kind,id){
+  try{await document.fonts?.ready}catch(_){}
+  const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  const ink='#1D1A2B',mute='#86828F';x.fillStyle='#F7F6F2';x.fillRect(0,0,W,H);
+  const foot=()=>{x.fillStyle=mute;x.font='500 24px "DM Mono", monospace';x.textAlign='center';x.fillText('BLOOMNOTE 花笺 · '+fmt(TODAY).toUpperCase(),W/2,H-56)};
+  if(kind==='bouquet'){
+    x.drawImage(await svgImage(place(bouquetSVG(S.sel),200,70,680,771),W,H),0,0);
+    x.fillStyle=ink;x.font='600 70px Caveat, cursive';let y=wrap(x,'“'+MOODLINE[S.mood]+'”',W/2,960,900,72);
+    x.fillStyle=mute;x.font='500 30px "Hanken Grotesk", sans-serif';y=wrap(x,'For '+S.mood+' · '+S.style,W/2,y+20,900,42);wrap(x,flowerList(S.sel),W/2,y+6,880,40);foot();
+  }else if(kind==='card'){
+    const cd=S.card,col=(INKS[cd.ink]||INKS[0])[0];
+    x.save();x.shadowColor='rgba(29,26,43,.12)';x.shadowBlur=60;x.shadowOffsetY=24;x.fillStyle='#fff';rrect(x,110,110,860,1080,12);x.fill();x.restore();
+    x.fillStyle=col;x.fillRect(110,110,12,1080);
+    x.textAlign='center';x.fillStyle=col;x.font='700 22px "Hanken Grotesk", sans-serif';x.fillText(kindLabel(cd).toUpperCase().split('').join(String.fromCharCode(8202)),W/2,180);
+    x.fillStyle=mute;x.font='600 28px "Hanken Grotesk", sans-serif';x.fillText(toLine(cd).toUpperCase(),W/2,224);
+    x.drawImage(await svgImage(place(bouquetSVG(S.sel),360,250,360,408),W,H),0,0);
+    x.fillStyle=col;x.font='600 78px Caveat, cursive';const y=wrap(x,cd.body||'',W/2,760,760,80);
+    if(cd.from&&cd.kind!=='From someone'){x.fillStyle=ink;x.font='600 62px Caveat, cursive';x.textAlign='center';x.fillText('— '+cd.from,W/2,Math.min(Math.max(y+40,980),1140))}
+    foot();
+  }else{
+    const e=S.album.find(a=>a.id===id);if(!e)throw new Error('missing');
+    const A=900,X=90,Y=80;
+    x.fillStyle='#fff';rrect(x,X-1,Y-1,A+2,A+2,28);x.fill();
+    let inner=place(bouquetSVG(e.sel,{square:1}),X,Y,A,A);
+    (e.stickers||[]).forEach(s=>{const w=A*.22,px=X+A*s.x/100,py=Y+A*s.y/100;inner+=`<g transform="rotate(${s.r||0} ${px+w/2} ${py+w/2})">${place(petSVG(s.p),px,py,w,w)}</g>`});
+    const img=await svgImage(inner,W,H);
+    x.save();rrect(x,X,Y,A,A,28);x.clip();if(e.withered)x.filter='sepia(.75) saturate(.45) contrast(.92)';x.drawImage(img,0,0);x.restore();
+    x.fillStyle=ink;x.font='600 66px Caveat, cursive';const y=wrap(x,e.words||'',W/2,1070,880,66);
+    x.fillStyle=mute;x.font='500 28px "Hanken Grotesk", sans-serif';x.textAlign='center';
+    x.fillText([e.title||'Untitled',e.withered?'Dried '+fmt(e.dried):fmt(e.date),e.from?'from '+e.from:''].filter(Boolean).join(' · '),W/2,Math.min(y+24,1240));foot();
+  }
+  return await new Promise(r=>c.toBlob(r,'image/png'));
+}
+async function saveImage(kind,id){
+  if(kind==='page'&&!id)return;
+  openSheet(`<h3>Save image</h3><div class="sk" style="width:100%;aspect-ratio:4/5;max-height:52vh"></div><p class="muted" style="text-align:center">Printing your image…</p>`);
+  try{
+    const blob=await renderPNG(kind,id);if(!blob)throw new Error('empty');
+    const url=URL.createObjectURL(blob);S._exp={blob,name:`riso-${kind}-${TODAY}.png`};
+    const dl=await getDL();
+    openSheet(`<h3>Save image</h3><img class="expimg" src="${url}" alt="Preview of the image to save">${dl?`<button class="primary" data-a="doSave">${IC.download}Save to phone</button><p class="muted" style="text-align:center">You can also press and hold the image to save it.</p>`:`<p class="muted" style="text-align:center">Press and hold the image, then choose Save to Photos.</p>`}<button class="cancel" data-a="closeSheet">Close</button>`);
+  }catch(err){closeSheet();toast('Couldn’t make the image. Try again.',{err:1})}
+}
+async function doSave(){
+  const dl=await getDL();if(!dl||!S._exp){toast('Saving isn’t available here. Press and hold the image instead.',{err:1});return}
+  try{await dl.save({filename:S._exp.name,data:S._exp.blob});closeSheet();toast('Image saved')}
+  catch(e){const c=e&&e.code;if(c==='declined')toast('Not saved');else if(c==='rate_limited')toast('Finish the open save prompt first',{err:1});else toast('Saving isn’t available here. Press and hold the image instead.',{err:1})}
+}
+
+/* boot: skeleton until fonts are ready */
+renderNav();getDL();
+Promise.race([document.fonts?document.fonts.ready:Promise.resolve(),new Promise(r=>setTimeout(r,1200))]).then(()=>{rootEl().removeAttribute('aria-busy');go(S.tab)});
+</script>
+
+<script>
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();window.__bip=e});
+addEventListener('appinstalled',()=>{window.__bip=null});
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
+</script>
+</body>
+</html>
