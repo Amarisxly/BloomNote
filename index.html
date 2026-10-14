@@ -145,9 +145,11 @@ textarea.txt{resize:vertical;min-height:84px}
 .pick svg{width:16px;height:16px;color:var(--mute)}
 .stems{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums}
 .canvas{position:relative;flex:1;min-height:150px;display:grid;place-items:center;margin-block:6px}
-.canvas > svg{height:100%;width:auto;max-width:100%;display:block}
+.canvas > svg{height:100%;width:auto;max-width:100%;display:block;transform:scale(1.254);transform-origin:50% 92%}
+.canvas .scorechip,.canvas .says,.canvas .hint{z-index:2}
 .scorechip{position:absolute;top:4px;left:0;font:inherit;text-align:left;display:grid;grid-template-columns:auto auto;column-gap:10px;align-items:center;background:rgba(255,255,255,.88);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:14px;padding:8px 12px;cursor:pointer;color:var(--ink);transition:transform .1s}
-.scorechip:active{transform:scale(.96)}
+.scorechip{transform:scale(.9);transform-origin:0 0}
+.scorechip:active{transform:scale(.86)}
 .scorechip b{grid-row:span 2;font-size:34px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;color:var(--accent)}
 .scorechip span{font-size:13px;font-weight:600;line-height:1.2}
 .scorechip small{font-size:12px;color:var(--mute);line-height:1.2}
@@ -156,19 +158,22 @@ textarea.txt{resize:vertical;min-height:84px}
 .hint{position:absolute;inset:auto 0 30%;text-align:center;font-size:14px;color:var(--mute);pointer-events:none}
 .trayhead{flex:none;display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--mute)}
 .trayhead b{font-size:13px;color:var(--ink);font-weight:600}
-.tray{flex:none;display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:70px;gap:8px 6px;overflow-x:auto;margin-inline:-16px;padding:8px 16px 12px;scroll-snap-type:x proximity;scrollbar-width:none}
+.tray{flex:none;overflow:hidden;margin-inline:-16px;padding:8px 0 12px;touch-action:pan-y;cursor:grab}
+.tray.dragging{cursor:grabbing}
+.ttrack{display:flex;gap:5px;padding-inline:16px;width:max-content;will-change:transform;backface-visibility:hidden}
+.tset{flex:none;display:grid;grid-auto-flow:column;grid-template-rows:repeat(2,auto);grid-auto-columns:60px;gap:7px 5px}
 .tray::-webkit-scrollbar{display:none}
-@media (min-height:740px){.tray{grid-template-rows:repeat(3,auto)}}
-.ft{position:relative;font:inherit;scroll-snap-align:start;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px 2px 5px;cursor:pointer;display:grid;justify-items:center;color:var(--ink);transition:transform .1s,border-color .12s;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+@media (min-height:740px){.tset{grid-template-rows:repeat(3,auto)}}
+.ft{position:relative;font:inherit;scroll-snap-align:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:3px 2px 4px;cursor:pointer;display:grid;justify-items:center;color:var(--ink);transition:transform .1s,border-color .12s;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
 .ft:active{transform:scale(.92)}
-.ft svg{width:36px;height:40px;pointer-events:none}
-.ft .n{font-size:11px;line-height:1.2;max-width:64px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ft svg{width:31px;height:34px;pointer-events:none}
+.ft .n{font-size:9.5px;line-height:1.2;max-width:55px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ft.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
 .ft.avoid{opacity:.45}
-.ft .ct{position:absolute;top:-6px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--pink);color:var(--ink);font-family:var(--mono);font-size:11px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
-.ft .minus{position:absolute;top:-6px;left:-4px;width:22px;height:22px;border-radius:11px;background:var(--ink);color:#fff;font-size:14px;line-height:1;display:grid;place-items:center}
+.ft .ct{position:absolute;top:-5px;right:-3px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;font-size:10px!important;background:var(--pink);color:var(--ink);font-family:var(--mono);font-size:11px;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.ft .minus{position:absolute;top:-5px;left:-3px;width:19px;height:19px;border-radius:10px;background:var(--ink);color:#fff;font-size:14px;line-height:1;display:grid;place-items:center}
 .ft.addft{border:1.5px dashed var(--line);background:transparent;color:var(--accent);align-content:center;gap:4px}
-.ft.addft svg{width:22px;height:40px}
+.ft.addft svg{width:19px;height:34px}
 .ft.addft .n{font-weight:600}
 .ft .yours{position:absolute;bottom:5px;right:5px;width:6px;height:6px;border-radius:3px;background:var(--accent)}
 /* flower maker */
@@ -361,9 +366,12 @@ textarea.txt{resize:vertical;min-height:84px}
 /* flower detail pager */
 .detail .hero{position:relative}
 .pager{display:flex;align-items:center;gap:2px;font-family:var(--mono);font-size:11px;color:var(--mute);font-variant-numeric:tabular-nums}
-.pager span{min-width:52px;text-align:center}
-.pgb{width:30px;height:30px;border-radius:15px;border:0;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0;transition:transform .1s,background .1s,color .1s}
-.pgb svg{width:8px;height:10px}
+.pager span{min-width:52px;text-align:center;padding:4px 0}
+.pager .pgb{position:absolute;top:50%;margin-top:-22px;z-index:2;color:var(--mute)}
+.pager .pgb[data-v="-1"]{left:4px;justify-items:start;padding-left:12px}.pager .pgb[data-v="1"]{right:4px;justify-items:end;padding-right:12px}
+.pager .pgb:active:not(:disabled){color:var(--ink)}
+.pgb{width:32px;height:44px;border-radius:10px;border:0;background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;padding:0;transition:transform .1s,background .1s,color .1s}
+.detail .hero .pgb svg{width:8px;height:10px;overflow:visible;display:block}
 .pgb:active:not(:disabled){transform:scale(.88);background:var(--soft);color:var(--ink)}
 .pgb:disabled{opacity:.2;cursor:default}
 .fsw{touch-action:pan-y}
@@ -374,10 +382,10 @@ textarea.txt{resize:vertical;min-height:84px}
 .lb.closing{animation:fadeOut .2s ease forwards}
 .lbtop{display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 0}
 .lbcount{font-family:var(--mono);font-size:13px;color:var(--mute);font-variant-numeric:tabular-nums}
-.lbview{flex:1;min-height:0;overflow:hidden;position:relative;touch-action:none}
+.lbview{flex:1;min-height:0;overflow:hidden;position:relative;touch-action:none;container-type:size}
 .lbtrack{display:flex;height:100%;will-change:transform}
 .lbslide{flex:0 0 100%;height:100%;display:grid;place-items:center;padding:10px 24px}
-.lbinner{width:min(100%,420px,58vh);transition:transform .28s var(--ease);animation:zoomIn .34s var(--ease) both}
+.lbinner{width:min(100%,420px,calc((100cqh - 112px) * .84));transition:transform .28s var(--ease);animation:zoomIn .34s var(--ease) both}
 @keyframes zoomIn{from{transform:scale(.86);opacity:.2}}
 .lbcard{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:12px 12px 14px;display:grid;gap:8px;box-shadow:0 22px 50px rgba(29,26,43,.12)}
 .lbcard .cv{position:relative;aspect-ratio:1/1;background:var(--bg);border-radius:14px;overflow:hidden}
@@ -389,9 +397,64 @@ textarea.txt{resize:vertical;min-height:84px}
 .lbcard .meta span:first-child{font-weight:600;color:var(--ink)}
 .lbcard.dried .cv{filter:sepia(.75) saturate(.45) contrast(.92) brightness(.98)}
 .lbinner .gcard{width:100%}
+.lbcard{grid-template-columns:minmax(0,1fr)}
+.lbcard .cv{min-width:0;width:100%}
+.lbcard .w{font-size:clamp(18px,5.5cqh,26px);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.lbcard .meta span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.lbcard .meta span:first-child{flex:none}
 .lbhint{text-align:center;font-size:12px;color:var(--mute);margin:4px 0 0}
-.lbbar{display:flex;gap:10px;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px))}
+.lbbar{display:flex;gap:10px;width:100%;max-width:520px;margin:0 auto;box-sizing:border-box;padding:10px 16px calc(12px + env(safe-area-inset-bottom,0px))}
 .expimg{width:100%;max-height:52vh;object-fit:contain;border-radius:14px;border:1px solid var(--line);background:#fff;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
+/* ---------- desktop web: full-width, left/right layout ---------- */
+@media (min-width:900px){
+  body{background:var(--bg)}
+  .shell{left:0;right:0;max-width:none;margin:0;border-inline:0}
+  .nav{grid-template-columns:repeat(5,minmax(0,128px));justify-content:center}
+  .top{padding-left:28px;padding-right:20px}
+  .scroll{padding-inline:28px}
+  .actions{padding-inline:28px}
+  /* Bouquet: big bouquet on the left, controls on the right */
+  .screen[data-view="mix"]{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,1fr);grid-template-rows:auto auto auto minmax(0,1fr) auto}
+  .screen[data-view="mix"] > .top{grid-column:1/-1;grid-row:1}
+  .screen[data-view="mix"] > .scroll.fixed{display:contents}
+  .screen[data-view="mix"] .canvas{grid-column:1;grid-row:2/6;min-height:0;height:100%;margin:0;padding:12px 28px 72px;overflow:hidden}
+  .screen[data-view="mix"] .canvas::after{content:"";position:absolute;top:6%;bottom:6%;right:0;width:1px;background:linear-gradient(180deg,transparent,var(--line) 22%,var(--line) 78%,transparent);filter:blur(1.2px);box-shadow:0 0 10px 1px rgba(218,215,207,.7);pointer-events:none}
+  .screen[data-view="mix"] .canvas > svg{transform:scale(1.1);transform-origin:50% 90%;max-height:100%}
+  .screen[data-view="mix"] .scorechip{top:16px;left:28px}
+  .screen[data-view="mix"] .says{bottom:24px;font-size:28px}
+  .screen[data-view="mix"] .ctx{grid-column:2;grid-row:2;padding:14px 28px 4px;flex-wrap:nowrap;min-width:0}
+  .screen[data-view="mix"] .ctx .pick{min-width:0;flex:0 1 auto}
+  .screen[data-view="mix"] .ctx .pick b{overflow:hidden;text-overflow:ellipsis}
+  .screen[data-view="mix"] .ctx .iconbtn.txt{flex:none;padding:0 10px;font-size:0;gap:0}
+  .screen[data-view="mix"] .ctx .iconbtn.txt svg{width:20px;height:20px}
+  .screen[data-view="mix"] .ctx .pick > span{display:none}
+  @media (min-width:1280px){.screen[data-view="mix"] .ctx .iconbtn.txt{font-size:14px;gap:6px}.screen[data-view="mix"] .ctx .pick > span{display:inline}}
+  .screen[data-view="mix"] .trayhead{grid-column:2;grid-row:3;padding:14px 28px 0}
+  .screen[data-view="mix"] .tray{grid-column:2;grid-row:4;align-self:stretch;margin:0;padding:10px 0 12px;min-height:0;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 28px,#000 calc(100% - 28px),transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 28px,#000 calc(100% - 28px),transparent 100%)}
+  .screen[data-view="mix"] .ttrack{height:100%}
+  .screen[data-view="mix"] .tset{height:100%}
+  .screen[data-view="mix"] .ttrack{padding-inline:28px}
+  .screen[data-view="mix"] .tset{grid-template-rows:repeat(auto-fill,64px);grid-auto-columns:66px;align-content:start}
+  .screen[data-view="mix"] .ft{height:64px;box-sizing:border-box;align-content:center}
+  .screen[data-view="mix"] .ft svg{width:34px;height:37px}
+  .screen[data-view="mix"] .ft .n{font-size:10.5px;max-width:62px}
+  .screen[data-view="mix"] > .actions{grid-column:2;grid-row:5}
+  /* Card: preview left, editor right */
+  .screen[data-view="card"] .scroll{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:48px;align-content:start}
+  .screen[data-view="card"] .scroll > *{grid-column:2}
+  .screen[data-view="card"] .scroll > .cardwrap{grid-column:1;grid-row:1/span 40;position:sticky;top:0;align-self:start;padding-top:20px}
+  .screen[data-view="card"] .gcard{width:min(100%,380px)}
+  /* Flower detail: art left, meaning right */
+  .screen[data-view="flower"] .detail{grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);column-gap:48px;align-items:start}
+  .screen[data-view="flower"] .detail > *{grid-column:2}
+  .screen[data-view="flower"] .detail > .hero{grid-column:1;grid-row:1/span 30;position:sticky;top:0;padding:40px 16px 16px}
+  .screen[data-view="flower"] .detail .hero svg{width:min(260px,70%)}
+  /* Album: wider grid */
+  .pages{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px}
+  .screen[data-view="album"] .afilter{max-width:560px}
+  /* Text-heavy screens stay readable */
+  .screen[data-view="dict"] .scroll,.screen[data-view="confess"] .scroll,.screen[data-view="cfResult"] .scroll,.screen[data-view="settings"] .scroll,.screen[data-view="maker"] .scroll,.screen[data-view="presets"] .scroll{padding-inline:max(28px,calc((100% - 720px)/2))}
+}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.screen.behind{transform:none}}
 </style>
 </head>
@@ -725,7 +788,7 @@ const VIEWS={
    <div class="ctx">
     <button class="pick" data-a="pickMood" aria-label="Occasion: ${esc(S.mood)}"><span>For</span><b>${esc(S.mood)}</b>${IC.down}</button>
     <button class="pick" data-a="pickStyle" aria-label="Style: ${esc(S.style)}"><span>Style</span><b>${esc(S.style)}</b>${IC.down}</button>
-    <button class="iconbtn txt" style="margin-left:auto" data-a="clearAnim" ${total()?'':'disabled'} aria-label="Clear bouquet">${IC.eraser}Clear</button>
+    <button class="iconbtn txt" style="margin-left:auto" data-a="clearAnim" ${total()?'':'disabled'} aria-label="Clear bouquet" title="Clear bouquet">${IC.eraser}Clear</button>
    </div>
    <div class="canvas" ${total()?'data-a="zoomBouquet" role="button" tabindex="0" aria-label="Open bouquet full screen"':''}>${bouquetSVG(S.sel,{grow:S.lastAdd})}
     ${A?`<button class="scorechip" data-a="why" aria-label="Score ${A.score}, ${A.tier}. See why"><b>${A.score}</b><span>${A.tier}</span><small>${notes?`<i>${notes} note${notes>1?'s':''}</i> · `:''}Why ›</small></button>
@@ -733,7 +796,7 @@ const VIEWS={
      :`<p class="hint">Tap a flower below to start.<br>Hold one to read its meaning.</p>`}
    </div>
    <div class="trayhead"><b>Flowers <span class="stems" style="margin-left:4px">${total()}/${MAXS}</span></b><span>Tap to add · hold for meaning</span></div>
-   <div class="tray" id="tray"><button class="ft addft" data-a="newFlower" aria-label="Create your own flower">${IC.plus}<span class="n">Your flower</span></button>${trayOrder().map(f=>{const c=S.sel[f.id]||0;return `<button class="ft ${c?'on':''} ${f.avoid?'avoid':''}" data-a="add" data-v="${f.id}" data-lp="${f.id}" aria-label="${esc(f.n)}${f.custom?', your flower':''}, ${c} selected">${tileSVG(f)}<span class="n">${esc(f.n)}</span>${f.custom?'<i class="yours" aria-hidden="true"></i>':''}${c?`<span class="ct">${c}</span><span class="minus" data-a="sub" data-v="${f.id}" role="button" aria-label="Remove one ${esc(f.n)}">−</span>`:''}</button>`}).join('')}</div>`,
+   <div class="tray" id="tray"><div class="ttrack" id="ttrack" style="transform:translate3d(${-(DRIFT.x||0)}px,0,0)">${(()=>{const t=`<button class="ft addft" data-a="newFlower" aria-label="Create your own flower">${IC.plus}<span class="n">Your flower</span></button>${trayOrder().map(f=>{const c=S.sel[f.id]||0;return `<button class="ft ${c?'on':''} ${f.avoid?'avoid':''}" data-a="add" data-v="${f.id}" data-lp="${f.id}" aria-label="${esc(f.n)}${f.custom?', your flower':''}, ${c} selected">${tileSVG(f)}<span class="n">${esc(f.n)}</span>${f.custom?'<i class="yours" aria-hidden="true"></i>':''}${c?`<span class="ct">${c}</span><span class="minus" data-a="sub" data-v="${f.id}" role="button" aria-label="Remove one ${esc(f.n)}">−</span>`:''}</button>`}).join('')}`;return `<div class="tset">${t}</div><div class="tset" aria-hidden="true">${t.replace(/<button /g,'<button tabindex="-1" ')}</div>`})()}</div></div>`,
    actions:`<button class="second" data-a="saveMine" ${total()?'':'disabled'}>${IC.star}Save</button><button class="second" data-a="toAlbum" ${total()?'':'disabled'}>${IC.album}Album</button><button class="primary" data-a="toCard" ${total()?'':'disabled'}>${IC.card}Write a card</button>`}},
 
  presets:()=>{const list=deckList(),mine=S.coll==='mine';if(!(S.deckIdx<list.length))S.deckIdx=0;return {title:'Presets',body:`
@@ -877,6 +940,7 @@ function header(v,l2){
     :`<header class="top">${v.brand?`<h1 class="brand">${LOGO}<span>bloom<em>note</em></span></h1>`:`<h1>${esc(v.title)}</h1>`}${v.right||''}${menu}</header>`;
 }
 function paint(el,entry,full){
+  el.dataset.view=entry?entry.view:S.tab;
   const v=entry?VIEWS[entry.view](entry.p):VIEWS[S.tab]();
   const cls=`scroll${v.fixed?' fixed':''}`;
   if(full){el.innerHTML=header(v,!!entry)+`<div class="${cls}">${v.body}</div>`+(v.actions?`<div class="actions">${v.actions}</div>`:'')}
@@ -1147,7 +1211,33 @@ document.addEventListener('change',ev=>{
 
 /* ---------- motion helpers ---------- */
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
-function popTile(v){const t=rootEl().querySelector(`.ft[data-v="${v}"]`);if(t){t.classList.remove('pop');void t.offsetWidth;t.classList.add('pop')}}
+function popTile(v){rootEl().querySelectorAll(`.ft[data-v="${v}"]`).forEach(t=>{t.classList.remove('pop');void t.offsetWidth;t.classList.add('pop')})}
+/* flower tray: a slow, sub-pixel drift on the GPU, drag with momentum, eases back in after you let go */
+const DRIFT={x:0,vel:0,hold:0,last:0,drag:null,moved:false};
+const CRUISE=0.022; // px per ms ≈ 22px/s
+function trayEls(){if(S.stack.length||S.tab!=='mix')return null;const tr=rootEl().querySelector('#tray'),tk=tr&&tr.querySelector('#ttrack');if(!tk)return null;const set=tk.firstElementChild;return {tr,tk,loop:set?set.offsetWidth+5:0}}
+document.addEventListener('pointerdown',e=>{const tr=e.target.closest&&e.target.closest('#tray');if(!tr||(e.pointerType==='mouse'&&e.button))return;
+  DRIFT.drag={id:e.pointerId,sx:e.clientX,x0:DRIFT.x,lastX:e.clientX,lastT:performance.now(),v:0,cap:false};DRIFT.moved=false;DRIFT.vel=0;DRIFT.hold=Infinity},true);
+document.addEventListener('pointermove',e=>{const d=DRIFT.drag;if(!d||e.pointerId!==d.id)return;const dx=e.clientX-d.sx;
+  if(!d.cap&&Math.abs(dx)>6){d.cap=true;DRIFT.moved=true;const tr=$('tray');if(tr){tr.classList.add('dragging');try{tr.setPointerCapture(e.pointerId)}catch(_){}}}
+  if(d.cap){const now=performance.now(),dt=Math.max(1,now-d.lastT);d.v=.75*d.v+.25*(-(e.clientX-d.lastX)/dt);d.lastX=e.clientX;d.lastT=now;DRIFT.x=d.x0-dx;applyDrift()}},true);
+function endDrag(e){const d=DRIFT.drag;if(!d||(e&&e.pointerId!==d.id))return;DRIFT.drag=null;$('tray')?.classList.remove('dragging');
+  DRIFT.vel=d.cap?Math.max(-2.4,Math.min(2.4,d.v)):0;DRIFT.hold=performance.now()+(d.cap?1800:2600)}
+document.addEventListener('pointerup',endDrag,true);document.addEventListener('pointercancel',endDrag,true);
+document.addEventListener('click',e=>{if(DRIFT.moved&&e.target.closest&&e.target.closest('#tray')){e.stopPropagation();e.preventDefault();DRIFT.moved=false}},true);
+document.addEventListener('wheel',e=>{if(!(e.target.closest&&e.target.closest('#tray')))return;e.preventDefault();DRIFT.x+=(Math.abs(e.deltaX)>Math.abs(e.deltaY)?e.deltaX:e.deltaY);DRIFT.vel=0;DRIFT.hold=performance.now()+2200;applyDrift()},{passive:false,capture:true});
+function applyDrift(){const t=trayEls();if(!t||!t.loop)return;DRIFT.x=((DRIFT.x%t.loop)+t.loop)%t.loop;t.tk.style.transform=`translate3d(${(-DRIFT.x).toFixed(2)}px,0,0)`}
+function drift(now){
+  const dt=Math.min(50,now-(DRIFT.last||now));DRIFT.last=now;
+  const t=trayEls(),live=t&&$('sheet').hidden&&$('lb').hidden&&!document.hidden;
+  if(live&&!DRIFT.drag&&t.loop>t.tr.clientWidth){
+    const target=RM||now<DRIFT.hold?0:CRUISE,tau=Math.abs(DRIFT.vel)>CRUISE*1.5?380:900;
+    DRIFT.vel+=(target-DRIFT.vel)*(1-Math.exp(-dt/tau));
+    if(Math.abs(DRIFT.vel)>1e-4){DRIFT.x+=DRIFT.vel*dt;applyDrift()}
+  }
+  requestAnimationFrame(drift);
+}
+requestAnimationFrame(drift);
 function doClearAnim(){
   if(!total())return;const s=snap();
   const fin=()=>{S.sel={};save();refresh();toast('Bouquet cleared',{undo:()=>restore(s)})};

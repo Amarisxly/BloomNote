@@ -17,7 +17,7 @@ Upload this whole folder to any HTTPS static host, then open the address on your
 
 | File | What it does |
 |---|---|
-| `index.html` | The whole app |
+| `index.html` | The whole app (phone layout, plus a left/right desktop layout from 900 px wide) |
 | `manifest.webmanifest` | Name, colours and icons for the home screen |
 | `sw.js` | Offline support: caches the app and fonts |
 | `icons/` | App icons (192, 512, maskable 512, Apple touch, favicon) |

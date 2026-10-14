@@ -1,5 +1,5 @@
 // Bloomnote service worker: app shell offline, fonts cached after first visit.
-const VERSION = 'bloomnote-v1';
+const VERSION = 'bloomnote-v2';
 const FONTS = 'bloomnote-fonts';
 const CORE = ['./', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png',
